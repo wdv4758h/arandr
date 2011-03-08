@@ -115,12 +115,14 @@ class ARandRWidget(gtk.DrawingArea):
         self._set_something('position', on, pos)
     def set_rotation(self, on, rot):
         self._set_something('rotation', on, rot)
-    def set_resolution(self, on, res):
+    def set_resolution(self, on, res, mid):
         self._set_something('mode', on, res)
+        self._set_something('modeid', on, mid)
 
     def set_active(self, on, active):
         v = self._xrandr.state.virtual
         o = self._xrandr.configuration.outputs[on]
+        m = self._xrandr.state.outputs[on].modes
 
         if not active and o.active:
             o.active = False
@@ -129,18 +131,16 @@ class ARandRWidget(gtk.DrawingArea):
             if hasattr(o, 'position'):
                 o.active = True # nothing can go wrong, position already set
             else:
-                pos = Position((0,0))
-                for m in self._xrandr.state.outputs[on].modes:
-                    # determine first possible mode
-                    if m[0]<=v.max[0] and m[1]<=v.max[1]:
-                        mode = m
-                        break
-                else:
+                try: # determine largest mode within virtual
+                    _, k = max([max(r), k] for k, (r, _) in m.items()
+                                           if r[0] <= v.max[0] and r[1] <= v.max[1])
+                except:
                     raise InadequateConfiguration("Smallest mode too large for virtual.")
 
                 o.active = True
-                o.position = pos
-                o.mode = mode
+                o.modeid = k
+                o.mode, _ = m[k]
+                o.position = Position((0,0))
                 o.rotation = NORMAL
 
         self._force_repaint()
@@ -292,16 +292,18 @@ class ARandRWidget(gtk.DrawingArea):
 
         if oc.active:
             res_m = gtk.Menu()
-            for r in os.modes:
-                i = gtk.CheckMenuItem("%sx%s"%r)
+            for k in os.modes:
+                r, n = os.modes[k]
+                w, h = r
+                i = gtk.CheckMenuItem("%sx%s"%r if str(r) == n else "%sx%s (%s)"%(w, h, n))
                 i.props.draw_as_radio = True
-                i.props.active = (oc.mode == r)
-                def _res_set(menuitem, on, r):
+                i.props.active = (oc.modeid == k)
+                def _res_set(menuitem, on, r, k):
                     try:
-                        self.set_resolution(on, r)
+                        self.set_resolution(on, r, k)
                     except InadequateConfiguration, e:
                         self.error_message(_("Setting this resolution is not possible here: %s")%e.message)
-                i.connect('activate', _res_set, on, r)
+                i.connect('activate', _res_set, on, r, k)
                 res_m.add(i)
 
             or_m = gtk.Menu()
