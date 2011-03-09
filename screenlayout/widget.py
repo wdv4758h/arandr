@@ -132,14 +132,14 @@ class ARandRWidget(gtk.DrawingArea):
                 o.active = True # nothing can go wrong, position already set
             else:
                 try: # determine largest mode within virtual
-                    _, k = max([max(r), k] for k, (r, _) in m.items()
+                    _, k = max([r[0]*r[1], k] for k, (r, _, _, _) in m.items()
                                            if r[0] <= v.max[0] and r[1] <= v.max[1])
                 except:
                     raise InadequateConfiguration("Smallest mode too large for virtual.")
 
                 o.active = True
                 o.modeid = k
-                o.mode, _ = m[k]
+                o.mode, _, _, _ = m[k]
                 o.position = Position((0,0))
                 o.rotation = NORMAL
 
@@ -293,9 +293,10 @@ class ARandRWidget(gtk.DrawingArea):
         if oc.active:
             res_m = gtk.Menu()
             for k in os.modes:
-                r, n = os.modes[k]
-                w, h = r
-                i = gtk.CheckMenuItem("%sx%s"%r if str(r) == n else "%sx%s (%s)"%(w, h, n))
+                r, n, c, d = os.modes[k]
+                s = str(r)
+                if c > 1: s += " (%s)"%(n if s != n else d)
+                i = gtk.CheckMenuItem(s)
                 i.props.draw_as_radio = True
                 i.props.active = (oc.modeid == k)
                 def _res_set(menuitem, on, r, k):

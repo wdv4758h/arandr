@@ -84,12 +84,12 @@ class XRandR(object):
                 parts = [(oa[2*i],oa[2*i+1]) for i in range(len(oa)//2)]
                 for p in parts:
                     if p[0] == '--mode':
-                        the1 = [(k, r) for k, (r, n) in m.items() if n == p[1]]
-                        if len(the1) == 0:
-                            raise FileLoadError('Mode ' + p[1] + 'is unavailable.')
-                        elif len(the1) != 1:
-                            raise FileLoadError('Mode ' + p[1] + 'is not unique.')
-                        o.modeid, o.mode = the1[0]
+                        modes = [(k, r) for k, (r, n, _, _) in m.items() if n == p[1]]
+                        if len(modes) == 0:
+                            raise FileLoadError('Specified mode ' + p[1] + 'is unavailable.')
+                        elif len(modes) != 1:
+                            raise FileLoadError('Required mode ' + p[1] + 'is ambiguous.')
+                        o.modeid, o.mode = modes[0]
                     elif p[0] == '--pos':
                         o.position = Position(p[1])
                     elif p[0] == '--rotate':
@@ -139,18 +139,20 @@ class XRandR(object):
                 if r in headline:
                     o.rotations.add(r)
 
-            for d in details:
+            c = {}
+            for d, w, h in details:
                 n, m = d.strip().split(" ")[0:2]
-                w, h = n.split("x")
-                m = m.strip("()")
-                for s in "_ip@": # postfix symbols: _=someid i=interlace p=progressive @=frequency
-                    w = w.split(s)[0]
-                    h = h.split(s)[0]
+                k = m.strip("()")
                 try:
-                    w, h = int(w), int(h)
+                    r = Size([int(w), int(h)])
                 except ValueError:
-                    raise Exception("Unable to parse WxH for modename " + n + " modeid " + m)
-                o.modes[m] = tuple([Size([w, h]), n])
+                    raise Exception("Output %s parse error: modename %s modeid %s."%(o.name, n,k))
+                o.modes[k] = (r, n, -1, " ".join(d.strip().split(" ")[-3:]))
+                if str(r) not in c: c[str(r)] = 0
+                if n != r: c[str(r)] += 1
+            for k in o.modes:
+                r, n, _, d = o.modes[k]
+                o.modes[k] = (r, n, c[str(r)], d.strip())
 
             self.state.outputs[o.name] = o
             self.configuration.outputs[o.name] = self.configuration.OutputConfiguration(active, modeid, geometry, rotation)
@@ -165,10 +167,13 @@ class XRandR(object):
                 screenline = l
             elif l.startswith('\t'):
                 continue
-            elif reduce(bool.__or__, [l.strip().startswith(c + ':') for c in "hv"]):
-                continue
-            elif l.startswith("  "): # mode
-                items[-1][1].append(l)
+            elif l.startswith(2*' '): # [mode, width, height]
+                l = l.strip()
+                if reduce(bool.__or__, [l.startswith(x+':') for x in "hv"]):
+                    l = l[-len(l):l.index(" start")-len(l)]
+                    items[-1][1][-1].append(l[l.rindex(' '):])
+                else: # mode
+                    items[-1][1].append([l])
             else:
                 items.append([l, []])
         return screenline, items
