@@ -141,18 +141,20 @@ class XRandR(object):
 
             c = {}
             for d, w, h in details:
-                n, m = d.strip().split(" ")[0:2]
+                n, m = d[0:2]
                 k = m.strip("()")
                 try:
                     r = Size([int(w), int(h)])
                 except ValueError:
                     raise Exception("Output %s parse error: modename %s modeid %s."%(o.name, n,k))
-                o.modes[k] = (r, n, -1, " ".join(d.strip().split(" ")[-3:]))
                 if str(r) not in c: c[str(r)] = 0
                 if n != r: c[str(r)] += 1
+                for x in [ "+preferred", "*current" ]:
+                    if x in d: d.remove(x)
+                o.modes[k] = (r, n, -1, " ".join(d[-3:]))
             for k in o.modes:
                 r, n, _, d = o.modes[k]
-                o.modes[k] = (r, n, c[str(r)], d.strip())
+                o.modes[k] = (r, n, c[str(r)], d)
 
             self.state.outputs[o.name] = o
             self.configuration.outputs[o.name] = self.configuration.OutputConfiguration(active, modeid, geometry, rotation)
@@ -173,7 +175,7 @@ class XRandR(object):
                     l = l[-len(l):l.index(" start")-len(l)]
                     items[-1][1][-1].append(l[l.rindex(' '):])
                 else: # mode
-                    items[-1][1].append([l])
+                    items[-1][1].append([l.split()])
             else:
                 items.append([l, []])
         return screenline, items
