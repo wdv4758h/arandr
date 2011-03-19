@@ -326,7 +326,7 @@ class ARandRWidget(gtk.DrawingArea):
                 else: all_r[r].append(k)
             for r in all_r:
                 if len(all_r[r]) == 1:
-                    k, s = all_r[r], str(r)
+                    [k], s = all_r[r], str(r)
                     i = gtk.CheckMenuItem(s)
                     i.props.draw_as_radio = True
                     i.props.active = (oc.modeid == k)
