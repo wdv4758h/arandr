@@ -173,9 +173,6 @@ class Application(object):
     @actioncallback
     def set_squash(self, value):
         self.widget.squash = not value
-        for i in self._volatile:
-            i.destroy()
-        self._volatile = []
         self.widget.emit('changed')
 
 
@@ -270,6 +267,9 @@ class Application(object):
     #################### widget maintenance ####################
 
     def _widget_changed(self, widget):
+        for i in self._volatile:
+            i.destroy()
+        self._volatile = []
         self._populate_outputs()
 
     def _populate_outputs(self):
