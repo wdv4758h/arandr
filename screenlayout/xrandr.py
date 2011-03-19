@@ -146,7 +146,7 @@ class XRandR(object):
                 try:
                     r = Size([int(w), int(h)])
                 except ValueError:
-                    raise Exception("Output %s parse error: modename %s modeid %s."%(o.name, n,k))
+                    raise Exception("Output %s parse error: modename %s modeid %s."%(o.name, n, k))
                 if str(r) not in c: c[str(r)] = 0
                 if n != r: c[str(r)] += 1
                 for x in [ "+preferred", "*current" ]:

@@ -72,7 +72,8 @@ class Application(object):
                 <menuitem action="Zoom16" />
             </menu>
             <menu action="Outputs" name="Outputs">
-                <menuitem action="OutputsDummy" />
+                <menuitem action="Cascade" />
+                <menuitem action="Squash" />
             </menu>
             <menu action="System">
                 <menuitem action="Metacity" />
@@ -112,7 +113,6 @@ class Application(object):
             ("View", None, _("_View")),
 
             ("Outputs", None, _("_Outputs")),
-            ("OutputsDummy", None, _("Dummy")),
 
             ("System", None, _("_System")),
             ("Metacity", None, _("_Keybindings (Metacity)"), None, None, self.do_open_metacity),
@@ -125,8 +125,14 @@ class Application(object):
             ("Zoom8", None, _("1:8"), None, None, 8),
             ("Zoom16", None, _("1:16"), None, None, 16),
             ], 8, self.set_zoom)
+        actiongroup.add_radio_actions([
+            ("Cascade", None, _("_Cascade"), None, None, True),
+            ("Squash", None, _("_Squash"), None, None, False),
+            ], True, self.set_squash)
 
         window.connect('destroy', gtk.main_quit)
+
+        self._volatile = []
 
         # uimanager
         self.uimanager = gtk.UIManager()
@@ -136,6 +142,7 @@ class Application(object):
         self.uimanager.insert_action_group(actiongroup, 0)
 
         self.uimanager.add_ui_from_string(self.uixml)
+        self.uimanager.get_widget('/MenuBar/Outputs').props.submenu.add(gtk.SeparatorMenuItem())
 
         # widget
         self.widget = widget.ARandRWidget(display=randr_display, force_version=force_version)
@@ -162,6 +169,15 @@ class Application(object):
         self.gconf = None
 
     #################### actions ####################
+
+    @actioncallback
+    def set_squash(self, value):
+        self.widget.squash = not value
+        for i in self._volatile:
+            i.destroy()
+        self._volatile = []
+        self.widget.emit('changed')
+
 
     @actioncallback
     def set_zoom(self, value): # don't use directly: state is not pushed back to action group.
@@ -258,7 +274,13 @@ class Application(object):
 
     def _populate_outputs(self):
         w = self.uimanager.get_widget('/MenuBar/Outputs')
-        w.props.submenu = self.widget.contextmenu()
+        m = w.props.submenu
+        v = self._volatile
+        def _add_item(i, v, m):
+            v.append(i)
+            m.add(i)
+        self.widget.contextmenu(lambda i: _add_item(i, v, m))
+        m.show_all()
 
     #################### metacity ####################
 

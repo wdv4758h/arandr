@@ -17,8 +17,10 @@ class ARandRWidget(gtk.DrawingArea):
             'changed':(gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
             }
 
-    def __init__(self, factor=8, display=None, force_version=False):
+    def __init__(self, cascade=True, factor=8, display=None, force_version=False):
         super(ARandRWidget, self).__init__()
+
+        self._squash = not cascade
 
         self._factor = factor
 
@@ -32,6 +34,11 @@ class ARandRWidget(gtk.DrawingArea):
         self._xrandr = XRandR(display=display, force_version=force_version)
 
     #################### widget features ####################
+
+    def _set_squash(self, s):
+        self._squash = s
+
+    squash = property(lambda self: self._squash, _set_squash)
 
     def _set_factor(self, f):
         self._factor = f
@@ -268,14 +275,11 @@ class ARandRWidget(gtk.DrawingArea):
 
     #################### context menu ####################
 
-    def contextmenu(self):
-        m = gtk.Menu()
+    def contextmenu(self, add_cb):
         for on in self._xrandr.outputs:
             i = gtk.MenuItem(on)
             i.props.submenu = self._contextmenu(on)
-            m.add(i)
-        m.show_all()
-        return m
+            add_cb(i)
 
     def _contextmenu(self, on):
         m = gtk.Menu()
@@ -292,6 +296,19 @@ class ARandRWidget(gtk.DrawingArea):
 
         if oc.active:
             res_m = gtk.Menu()
+
+            def _res_set(menuitem, on, r, k):
+                try:
+                    self.set_resolution(on, r, k)
+                except InadequateConfiguration, e:
+                    self.error_message(_("Setting this resolution is not possible here: %s")%e.message)
+            def _rot_set(menuitem, on, r):
+                try:
+                    self.set_rotation(on, r)
+                except InadequateConfiguration, e:
+                    self.error_message(_("This orientation is not possible here: %s")%e.message)
+
+        if self.squash and oc.active:
             for k in os.modes:
                 r, n, c, d = os.modes[k]
                 s = str(r)
@@ -299,24 +316,43 @@ class ARandRWidget(gtk.DrawingArea):
                 i = gtk.CheckMenuItem(s)
                 i.props.draw_as_radio = True
                 i.props.active = (oc.modeid == k)
-                def _res_set(menuitem, on, r, k):
-                    try:
-                        self.set_resolution(on, r, k)
-                    except InadequateConfiguration, e:
-                        self.error_message(_("Setting this resolution is not possible here: %s")%e.message)
                 i.connect('activate', _res_set, on, r, k)
                 res_m.add(i)
+        elif oc.active:
+            all_r = {}
+            for k in os.modes:
+                r = os.modes[k][0]
+                if not r in all_r: all_r[r] = [k]
+                else: all_r[r].append(k)
+            for r in all_r:
+                if len(all_r[r]) == 1:
+                    k, s = all_r[r], str(r)
+                    i = gtk.CheckMenuItem(s)
+                    i.props.draw_as_radio = True
+                    i.props.active = (oc.modeid == k)
+                    i.connect('activate', _res_set, on, r, k)
+                    res_m.add(i)
+                    continue
+                res_r = gtk.Menu()
+                for k in all_r[r]:
+                    x, n, x, d = os.modes[k]
+                    s = str(r)
+                    s += " (%s)"%(n if s != n else d)
+                    i = gtk.CheckMenuItem(s)
+                    i.props.draw_as_radio = True
+                    i.props.active = (oc.modeid == k)
+                    i.connect('activate', _res_set, on, r, k)
+                    res_r.add(i)
+                j = gtk.MenuItem(str(r))
+                j.props.submenu = res_r
+                res_m.add(j)
 
+        if oc.active:
             or_m = gtk.Menu()
             for r in ROTATIONS:
                 i = gtk.CheckMenuItem("%s"%r)
                 i.props.draw_as_radio = True
                 i.props.active = (oc.rotation == r)
-                def _rot_set(menuitem, on, r):
-                    try:
-                        self.set_rotation(on, r)
-                    except InadequateConfiguration, e:
-                        self.error_message(_("This orientation is not possible here: %s")%e.message)
                 i.connect('activate', _rot_set, on, r)
                 if r not in os.rotations:
                     i.props.sensitive = False
