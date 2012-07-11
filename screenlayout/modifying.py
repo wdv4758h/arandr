@@ -18,6 +18,140 @@
 
 import inspect
 
+from collections import OrderedDict
+
+def evalargs(func, *positional, **named):
+    """Determine what the positional and named arguments look like when applied
+    to func.
+
+    The function returns a 3-tuple (expected, args, kwargs) of expected keyword
+    arguments (with their default values filled in), args and kwargs as they
+    could be passed with * and **.
+
+    Unless func is picky about arguments being passed as keywords (eg
+    operator.lt), it will always hold that `f(...)` is equivalent to that::
+
+        (expected, args, kwargs) = evalargs(f, ...)
+        kwargs.update(expected)
+        return evalargs(*args, **kwargs)
+
+    As the expected arguments are stored in a sorted dictionary, it is also
+    equivalent to::
+
+        return evalargs(*(expected.values() + args), **kwargs)
+
+    When the positional and named args are not sufficient or adequate to be
+    passed to func, the same exception is raised as if it was actually tried
+    (although there might be inaccuracies).
+
+    This is similar to inspect.getcallargs, but handles some things
+    differently: It focuses on the outside view of the function (how arguments
+    can be passed back in) instate of the inside view (what *args and **kwargs
+    would actually be assigned to). In addition to that, it checks func for a
+    __getargspec__() property that allows wrapped methods to mimick their
+    original functions. (If func is a bound method, __getargspec__ will be
+    passed its self).
+
+    >>> def f(a, b=5, *args):
+    ...     pass
+    >>> evalargs(f, 10, 15, 20)
+    (OrderedDict([('a', 10), ('b', 15)]), (20,), None)
+    >>> evalargs(f, x=42)
+    Traceback (most recent call last):
+      ...
+    TypeError: f() got an unexpected keyword argument 'x'
+    >>> evalargs(f)
+    Traceback (most recent call last):
+      ...
+    TypeError: f() takes at least 1 argument (0 given)
+    >>> f(1, a=5)
+    Traceback (most recent call last):
+      ...
+    TypeError: f() got multiple values for keyword argument 'a'
+
+    Caveat: As an anticipation of PEP 3113, tuple unpacking is not supported.
+    The author acknowledges that he now finally sees the reasons behind that
+    PEP."""
+
+    if hasattr(func, '__getargspec__'):
+        argspec = func.__getargspec__(func.im_self) if hasattr(func, 'im_self') else func.__getargspec__()
+    else:
+        argspec = inspect.getargspec(func)
+
+    takes_varargs = argspec.varargs is not None
+    takes_keywords = argspec.keywords is not None
+
+    undefined = object() # sentinel for identifying unfilled arguments
+
+    expected = OrderedDict((name, undefined) for name in argspec.args)
+
+    for name, assigned in zip(argspec.args, positional):
+        expected[name] = assigned
+
+    # fill in positional arguments
+
+    if len(positional) > len(argspec.args):
+        if takes_varargs:
+            varargs = positional[len(argspec.args):]
+        else:
+            # this is one of the inaccuracies mentioned in the docstring: see
+            # inspect.getcallargs for situations in which it says "no arguments
+            # (%d given)" instead.
+            raise TypeError("%s() takes %s %s (%d given)"%(
+                func.__name__,
+                "at most" if argspec.defaults else "exactly",
+                "1 argument" if len(argspec.args) == 1 else "%d arguments"%len(argspec.args),
+                len(positional)
+                ))
+    else:
+        if takes_varargs:
+            varargs = ()
+        else:
+            varargs = None
+
+    # fill in keyword arguments
+
+    if takes_keywords:
+        kwargs = {}
+    else:
+        kwargs = None
+
+    for name, assigned in named.iteritems():
+        if name in expected:
+            if expected[name] is not undefined:
+                raise TypeError("%s() got multiple values for keyword argument %r"%(
+                    func.__name__,
+                    name
+                    ))
+            else:
+                expected[name] = assigned
+        else:
+            if takes_keywords:
+                kwargs[name] = assigned
+            else:
+                raise TypeError("%s() got an unexpected keyword argument %r"%(
+                    func.__name__,
+                    name
+                    ))
+
+    # fill in defaults
+
+    for name, default in zip(argspec.args[-len(argspec.defaults):], argspec.defaults):
+        if expected[name] is undefined:
+            expected[name] = default
+
+    # check for undefined arguments
+
+    if any(value is undefined for value in expected.values()):
+        raise TypeError("%s() takes %s %s (%d given)"%(
+            func.__name__,
+            "at least" if argspec.defaults else "exactly",
+            "1 argument" if (len(argspec.args) - len(argspec.defaults)) == 1 else "%d arguments"%(len(argspec.args) - len(argspec.defaults)),
+            len(positional)
+            ))
+
+    return (expected, varargs, kwargs)
+
 def modifying(original_function, eval_from_self=False):
     """Wraps a function in a way that it can be used as a drop-in replacement,
     signature-wise, for a function whose signature is overly complex. It also
