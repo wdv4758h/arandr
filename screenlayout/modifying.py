@@ -163,6 +163,45 @@ def evalargs(func, *positional, **named):
 
     return (expected, varargs, kwargs)
 
+def _argspec_get_defaultdict(argspec):
+    """Return the arguments of an argspec that do have default values in a dict
+    with their default values"""
+
+    return dict(zip(argspec.args[-len(argspec.defaults):], argspec.defaults))
+
+def _join_argspecs(orig_func, updating_func):
+    """Create an argspec that resembles that of orig_func, but whose default
+    values are updated to resemble those of updating_func if defined.
+
+    Arguments of updating_func without default values or those that are not in
+    orig_func will be ignored.
+
+    It is an error if the resulting argspec can not be represented, i.e. if an
+    argument gets a default assigned that is not the last positional argument.
+    """
+
+    orig = _getargspec(orig_func)
+    updating = _getargspec(updating_func)
+
+    defaults = _argspec_get_defaultdict(orig)
+    for key, value in _argspec_get_defaultdict(updating).items():
+        if key not in orig.args:
+            continue
+        defaults[key] = value
+
+    sorted_defaults = []
+
+    from_now_we_need_defaults = False
+    for arg in orig.args:
+        if arg in defaults:
+            sorted_defaults.append(defaults[arg])
+            from_now_we_need_defaults = True
+        else:
+            if from_now_we_need_defaults:
+                raise ValueError("This set of default values can not be expressed in an argspec because there is no default value for %s."%arg)
+
+    return inspect.ArgSpec(orig.args, orig.varargs, orig.keywords, tuple(sorted_defaults))
+
 def modifying(original_function, eval_from_self=False):
     """Wraps a function in a way that it can be used as a drop-in replacement,
     signature-wise, for a function whose signature is overly complex. It also
@@ -181,7 +220,7 @@ def modifying(original_function, eval_from_self=False):
     keyword arguments that override the original arguments.
 
     >>> def f(a, b, c, d="d", e="e"):
-    ...     print c
+    ...     print c, d
     >>>
     >>> @modifying(f)
     ... def new_f(super, c, e):
@@ -190,9 +229,9 @@ def modifying(original_function, eval_from_self=False):
     ...     else:
     ...         return super(c=3*c)
     >>> new_f(1, 2, 3, 4, 5)
-    6
+    6 4
     >>> new_f(1, 2, c=3)
-    9
+    9 d
 
     It can also be used with classes, both for calling constructors...
     calling constructors...
@@ -233,6 +272,14 @@ def modifying(original_function, eval_from_self=False):
     >>> a = factory(a=2, b=10)
     >>> a.a
     42
+
+    The simple function can use positional arguments to override defaults:
+
+    >>> @modifying(f)
+    ... def different_f(super, d="new_d"):
+    ...     super()
+    >>> different_f(1, 2, 3)
+    3 new_d
 
     In a way, it is a generalization of functools.partial, as it can replicate
     its behavior.
