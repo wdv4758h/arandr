@@ -14,11 +14,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Provides the modifyable decorator, which might go into the functools module."""
+"""Provides the `modifying` decorator, which might go into the functools module."""
 
 import inspect
 
 from collections import OrderedDict
+
+def _getargspec(func):
+    """Wrapper around getargspec that also respects callables that use the
+    __getargspec__ property to simulate complex argspec when they really only
+    have *args, **kwargs.
+
+    When a __getargspec__ is found as a bound function (as it would happen with
+    objects of types that implement __call__), it gets passed self.
+    """
+
+    if hasattr(func, '__getargspec__'):
+        return func.__getargspec__(func.im_self) if hasattr(func, 'im_self') else func.__getargspec__()
+    else:
+        return inspect.getargspec(func)
 
 def evalargs(func, *positional, **named):
     """Determine what the positional and named arguments look like when applied
@@ -35,8 +49,8 @@ def evalargs(func, *positional, **named):
         kwargs.update(expected)
         return evalargs(*args, **kwargs)
 
-    As the expected arguments are stored in a sorted dictionary, it is also
-    equivalent to::
+    As the expected arguments are stored in a sorted dictionary, the last line
+    can also be put like this::
 
         return evalargs(*(expected.values() + args), **kwargs)
 
@@ -73,10 +87,7 @@ def evalargs(func, *positional, **named):
     The author acknowledges that he now finally sees the reasons behind that
     PEP."""
 
-    if hasattr(func, '__getargspec__'):
-        argspec = func.__getargspec__(func.im_self) if hasattr(func, 'im_self') else func.__getargspec__()
-    else:
-        argspec = inspect.getargspec(func)
+    argspec = _getargspec(func)
 
     takes_varargs = argspec.varargs is not None
     takes_keywords = argspec.keywords is not None
