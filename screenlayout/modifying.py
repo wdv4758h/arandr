@@ -22,17 +22,35 @@ from collections import OrderedDict
 
 def _getargspec(func):
     """Wrapper around getargspec that also respects callables that use the
-    __getargspec__ property to simulate complex argspec when they really only
-    have *args, **kwargs.
+    __getargspec__ property (to simulate complex argspec when they really only
+    have *args, **kwargs), and to instanciable types (getting whose argspec
+    usually means inspecting its __init__ and chopping off the first argument
+    because it behaves like a bound method but isn't one).
 
     When a __getargspec__ is found as a bound function (as it would happen with
     objects of types that implement __call__), it gets passed self.
+
+    As to allow functions using _getargspec to take ArgSpec objects as well,
+    they will be passed through.
     """
+
+    if isinstance(func, inspect.ArgSpec):
+        return func
 
     if hasattr(func, '__getargspec__'):
         return func.__getargspec__(func.im_self) if hasattr(func, 'im_self') else func.__getargspec__()
     else:
-        return inspect.getargspec(func)
+        if isinstance(func, type):
+            argspec = _getargspec(func.__init__)
+            # defaults are only modified if someone uses a default value for
+            # self. if someone can make meaningful use of the varargs argument,
+            # he might be interested in whether the varargs will contain a self
+            # when called, but that seems to be too special to break the rules
+            # here -- besides, i fail to imagine how that could happen and what
+            # would be a proper result at all.
+            return inspect.ArgSpec(argspec.args[1:], argspec.varargs, argspec.keywords, argspec.defaults[1:] if len(argspec.args) == len(argspec.defaults) else argspec.defaults)
+        else:
+            return inspect.getargspec(func)
 
 def evalargs(func, *positional, **named):
     """Determine what the positional and named arguments look like when applied
@@ -167,7 +185,10 @@ def _argspec_get_defaultdict(argspec):
     """Return the arguments of an argspec that do have default values in a dict
     with their default values"""
 
-    return dict(zip(argspec.args[-len(argspec.defaults):], argspec.defaults))
+    if argspec.defaults:
+        return dict(zip(argspec.args[-len(argspec.defaults):], argspec.defaults))
+    else:
+        return {}
 
 def _join_argspecs(orig_func, updating_func):
     """Create an argspec that resembles that of orig_func, but whose default
@@ -234,11 +255,11 @@ def modifying(original_function, eval_from_self=False):
     9 d
 
     It can also be used with classes, both for calling constructors...
-    calling constructors...
 
     >>> class A(object):
     ...     def __init__(self, a, b, c="c"):
     ...         self.a = a
+    ...         self.b = b
     >>> @modifying(A)
     ... def A_factory(super, c):
     ...     print "Creating a %r style A"%c
@@ -250,28 +271,31 @@ def modifying(original_function, eval_from_self=False):
     ... and for decorating methods:
 
     >>> class A_Factory(object):
-    ...     enforce_a = 42
+    ...     def __init__(self, enforce_a):
+    ...         self.enforce_a = enforce_a
     ...     @modifying(A)
     ...     def __call__(self, super):
     ...         return super(a=self.enforce_a)
-    >>> factory = A_Factory()
+    >>> factory = A_Factory(enforce_a=42)
     >>> a = factory(a=2, b=10)
     >>> a.a
     42
 
     In case the decision on what to decorate can only be made later, it can be
-    deferred:
+    deferred, eg for chaining factories:
 
     >>> class Anything_Factory(object):
-    ...     enforce_a = 42
+    ...     enforce_b = 23
     ...     @modifying(lambda self: self.baseclass, eval_from_self=True)
     ...     def __call__(self, super):
-    ...         return super(a=self.enforce_a)
-    >>> factory = Anything_Factory()
-    >>> factory.baseclass = A
-    >>> a = factory(a=2, b=10)
+    ...         return super(b=self.enforce_b)
+    >>> second_factory = Anything_Factory()
+    >>> second_factory.baseclass = factory.__call__
+    >>> a = second_factory(a=2, b=10)
     >>> a.a
     42
+    >>> a.b
+    23
 
     The simple function can use positional arguments to override defaults:
 
@@ -296,37 +320,71 @@ def modifying(original_function, eval_from_self=False):
 
         def wrapped(*args, **kwargs):
             if eval_from_self:
+                # this will typically only be the case if
+                # simple_function_is_method, but i don't see a reason to check
+                # for it -- maybe someone's trying to be clever, let's let him
                 _original_function = original_function(args[0])
             else:
                 _original_function = original_function
-            object_mode = isinstance(_original_function, type) # workaround because classes can't be introspected like functions
 
             if simple_function_is_method:
                 self = args[0]
                 args = args[1:]
 
-            if object_mode:
-                function_for_getcallargs = _original_function.__init__
-                getcallargs_args = (None,) + args
-            else:
-                function_for_getcallargs = _original_function
-                getcallargs_args = args
+#            if not isinstance(function_for_getcallargs, type(lambda:None)): # for instances of classes that can be called
+#                function_for_getcallargs = function_for_getcallargs.__call__
 
-            argspec = inspect.getargspec(function_for_getcallargs)
+            argspec = _getargspec(_original_function)
             if argspec.varargs or argspec.keywords:
                 raise ValueError("Original function must not have *args or **kwargs.")
-            callargs = inspect.getcallargs(function_for_getcallargs, *getcallargs_args, **kwargs)
 
-            if object_mode:
-                del callargs['self']
-            super = lambda **overrides: _original_function(**dict(callargs, **overrides))
+            argspec_for_evalargs = _join_argspecs(_original_function, simple_function)
+            expected, args, kwargs = evalargs(argspec_for_evalargs, *args, **kwargs)
 
-            kwargs_for_simple = dict((k, callargs[k]) for k in args_for_simple_function if k in callargs)
+            def super(**overrides):
+                all_kwargs = dict(expected)
+                if kwargs is not None:
+                    all_kwargs.update(kwargs)
+                # the above two (expected vs kwargs) could just as well be the
+                # other way round too -- evalargs alreay makes sure there are
+                # no duplicates
+
+                # if we wanted to cater for functions that don't take arguments
+                # in keyword form, we'd have to sort the overrides into
+                # expected if they fit and into kwargs otherwise, and pass
+                # expected as a part of *args. this is unlikely to be necessary
+                # as such functions (like operator.lt) can't be introspected
+                # anyway.
+                all_kwargs.update(overrides)
+
+                return _original_function(*(args if args is not None else ()), **all_kwargs)
+
+            kwargs_for_simple = {}
+            for a in args_for_simple_function:
+                if a in expected:
+                    kwargs_for_simple[a] = expected[a]
+                elif kwargs is not None and a in kwargs:
+                    kwargs_for_simple[a] = kwargs[a]
+                else:
+                    # hope it has a default
+                    pass
 
             if simple_function_is_method:
                 return simple_function(self, super, **kwargs_for_simple)
             else:
                 return simple_function(super, **kwargs_for_simple)
+
+        if simple_function_is_method:
+            if eval_from_self:
+                wrapped.__getargspec__ = lambda self: _join_argspecs(original_function(self), simple_function)
+            else:
+                wrapped.__getargspec__ = lambda self, result=_join_argspecs(original_function, simple_function): result
+        else:
+            wrapped.__getargspec__ = lambda result=_join_argspecs(original_function, simple_function): result
+
+        wrapped.__name__ = simple_function.__name__
+        wrapped.__doc__ = simple_function.__doc__
+
         return wrapped
     return decorator
 
