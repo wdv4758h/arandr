@@ -21,11 +21,18 @@ import inspect
 from collections import OrderedDict
 
 def _getargspec(func):
-    """Wrapper around getargspec that also respects callables that use the
-    __getargspec__ property (to simulate complex argspec when they really only
-    have *args, **kwargs), and to instanciable types (getting whose argspec
-    usually means inspecting its __init__ and chopping off the first argument
-    because it behaves like a bound method but isn't one).
+    """Wrapper around getargspec that is enhanced
+
+    * to respects callables that use the
+      __getargspec__ property (to simulate complex argspec when they really
+      only have *args, **kwargs),
+
+    * to instanciable types (getting whose argspec
+      usually means inspecting its __init__ and chopping off the first argument
+      because it behaves like a bound method but isn't one), and
+
+    * to recognize objects that implement __call__ and give the bound method's
+      argspec
 
     When a __getargspec__ is found as a bound function (as it would happen with
     objects of types that implement __call__), it gets passed self.
@@ -49,8 +56,11 @@ def _getargspec(func):
             # here -- besides, i fail to imagine how that could happen and what
             # would be a proper result at all.
             return inspect.ArgSpec(argspec.args[1:], argspec.varargs, argspec.keywords, argspec.defaults[1:] if len(argspec.args) == len(argspec.defaults) else argspec.defaults)
-        else:
+        elif inspect.isfunction(func) or inspect.ismethod(func): # only those can be inspected
+            # FIXME: we should detect bound methods here and do first argument stripping too
             return inspect.getargspec(func)
+        else:
+            return _getargspec(func.__call__)
 
 def evalargs(func, *positional, **named):
     """Determine what the positional and named arguments look like when applied
@@ -290,7 +300,7 @@ def modifying(original_function, eval_from_self=False):
     ...     def __call__(self, super):
     ...         return super(b=self.enforce_b)
     >>> second_factory = Anything_Factory()
-    >>> second_factory.baseclass = factory.__call__
+    >>> second_factory.baseclass = factory
     >>> a = second_factory(a=2, b=10)
     >>> a.a
     42
