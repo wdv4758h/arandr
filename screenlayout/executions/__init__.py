@@ -27,8 +27,9 @@ import subprocess
 from . import context
 
 class ManagedExecution(object):
-    def __init__(self, argv, context=context.local):
-        self.process = context(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+    def __init__(self, argv, context=context.local, shell=False):
+        # i don't recommend using shell=True, but it's useful for testing the ssh wrapper
+        self.process = context(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, shell=shell)
 
     def read(self):
         # currently, this does hardly more than subprocess.check_output.

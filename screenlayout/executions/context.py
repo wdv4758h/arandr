@@ -33,9 +33,9 @@ import zipfile
 import subprocess
 
 if sys.version >= (3, 3):
-    from shlex import quote
+    from shlex import quote as shell_quote
 else:
-    from pipes import quote
+    from pipes import quote as shell_quote
 
 from ..modifying import modifying
 
@@ -63,14 +63,20 @@ class SSHContext(object):
         self.ssh_args = ssh_args
         self.underlying_context = underlying_context
 
-    # FIXME: i'd raver have the argument list automatically extracted from subprocess.Popen
-    def __call__(self, args, bufsize=0, executable=None, stdin=None, stdout=None, stderr=None, preexec_fn=None, close_fds=False, shell=False, cwd=None, env=None, universal_newlines=False, startupinfo=None, creationflags=0):
+    @modifying(lambda self: self.underlying_context, eval_from_self=True)
+    def __call__(self, super, args, env, shell, cwd, executable):
         if executable:
+            # i'm afraid this can't be implemented easily; there might be a way
+            # to wrap the command in *another* shell execution and make that
+            # shell do the trick
             raise NotImplementedException("The executable option is not usable with an SSHContext.")
+        if cwd:
+            # should be rather easy to implement
+            raise NotImplementedException("The cwd option is not usable with an SSHContext.")
         if not shell:
             # with ssh, there is no way of passing individual arguments;
             # rather, arguments are always passed to be shell execued
-            args = " ".join(quote(a) for a in args)
+            args = " ".join(shell_quote(a) for a in args)
 
         for (k, v) in env.iteritems() if env is not None else ():
             # definition as given in dash man page:
@@ -80,9 +86,9 @@ class SSHContext(object):
             if k[0] in string.digits or any(_k not in string.ascii_letters + string.digits + '_' for _k in k):
                 raise ValueError("The environment variable %r can not be set over SSH."%k)
 
-            args = "%s=%s %s"%(quote(k), quote(v), args)
+            args = "%s=%s %s"%(shell_quote(k), shell_quote(v), args)
 
-        return self.underlying_context((self.ssh_executable,) + self.ssh_args + (self.host, '--', args), bufsize=bufsize, stdin=stdin, stdout=stdout, stderr=stderr, preexec_fn=preexec_fn, close_fds=close_fds, universal_newlines=universal_newlines, startupinfo=startupinfo, creationflags=creationflags)
+        return super(args=(self.ssh_executable,) + self.ssh_args + (self.host, '--', args), shell=False)
 
 class SimpleLoggingContext(object):
     """Logs only command execution, no results"""
