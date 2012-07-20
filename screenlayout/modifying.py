@@ -35,14 +35,7 @@ def _getargspec(func):
       argspec
 
     When a __getargspec__ is found as a bound function (as it would happen with
-    objects of types that implement __call__), it gets passed self.
-
-    As to allow functions using _getargspec to take ArgSpec objects as well,
-    they will be passed through.
-    """
-
-    if isinstance(func, inspect.ArgSpec):
-        return func
+    objects of types that implement __call__), it gets passed self."""
 
     if hasattr(func, '__getargspec__'):
         return func.__getargspec__(func.im_self) if hasattr(func, 'im_self') else func.__getargspec__()
@@ -115,7 +108,12 @@ def evalargs(func, *positional, **named):
     The author acknowledges that he now finally sees the reasons behind that
     PEP."""
 
-    argspec = _getargspec(func)
+    if isinstance(func, inspect.ArgSpec):
+        argspec = func
+        funcname = repr(argspec)
+    else:
+        argspec = _getargspec(func)
+        funcname = "%s()"%func.__name__
 
     takes_varargs = argspec.varargs is not None
     takes_keywords = argspec.keywords is not None
@@ -136,8 +134,8 @@ def evalargs(func, *positional, **named):
             # this is one of the inaccuracies mentioned in the docstring: see
             # inspect.getcallargs for situations in which it says "no arguments
             # (%d given)" instead.
-            raise TypeError("%s() takes %s %s (%d given)"%(
-                func.__name__,
+            raise TypeError("%s takes %s %s (%d given)"%(
+                funcname,
                 "at most" if argspec.defaults else "exactly",
                 "1 argument" if len(argspec.args) == 1 else "%d arguments"%len(argspec.args),
                 len(positional)
@@ -158,8 +156,8 @@ def evalargs(func, *positional, **named):
     for name, assigned in named.iteritems():
         if name in expected:
             if expected[name] is not undefined:
-                raise TypeError("%s() got multiple values for keyword argument %r"%(
-                    func.__name__,
+                raise TypeError("%s got multiple values for keyword argument %r"%(
+                    funcname,
                     name
                     ))
             else:
@@ -168,8 +166,8 @@ def evalargs(func, *positional, **named):
             if takes_keywords:
                 kwargs[name] = assigned
             else:
-                raise TypeError("%s() got an unexpected keyword argument %r"%(
-                    func.__name__,
+                raise TypeError("%s got an unexpected keyword argument %r"%(
+                    funcname,
                     name
                     ))
 
@@ -182,8 +180,8 @@ def evalargs(func, *positional, **named):
     # check for undefined arguments
 
     if any(value is undefined for value in expected.values()):
-        raise TypeError("%s() takes %s %s (%d given)"%(
-            func.__name__,
+        raise TypeError("%s takes %s %s (%d given)"%(
+            funcname,
             "at least" if argspec.defaults else "exactly",
             "1 argument" if (len(argspec.args) - len(argspec.defaults)) == 1 else "%d arguments"%(len(argspec.args) - len(argspec.defaults)),
             len(positional)
