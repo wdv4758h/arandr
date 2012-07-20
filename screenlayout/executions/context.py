@@ -25,24 +25,35 @@ Context objects are subprocess.Popen factories, either by being a
 subprocess.Popen subclass, or by behaving sufficiently similar (ie, they can be
 called with Popen's args)."""
 
+import logging
 import string
 import functools
 import sys
+import zipfile
+import subprocess
+
 if sys.version >= (3, 3):
     from shlex import quote
 else:
     from pipes import quote
 
+from ..modifying import modifying
+
 local = subprocess.Popen
 
 class WithEnvironment(object):
+    """Enforces preset environment variables upon executions"""
     def __init__(self, preset_environment, underlying_context=local):
         self.preset_environment = preset_environment
         self.underlying_context = underlying_context
 
-    def __call__(self, *args, **kwargs):
-        kwargs['env'] = dict(kwargs.get('env', {}), **self.preset_environment)
-        return self.underlying_context(*args, **kwargs)
+    @modifying(lambda self: self.underlying_context, eval_from_self=True)
+    def __call__(self, super, env):
+        if env is not None:
+            env = dict(env, **self.preset_environment)
+        else:
+            env = self.preset_environment
+        return super(env=env)
 
 class SSHContext(object):
     ssh_executable = '/usr/bin/ssh'
@@ -50,6 +61,7 @@ class SSHContext(object):
     def __init__(self, host, ssh_args=(), underlying_context=local):
         self.host = host
         self.ssh_args = ssh_args
+        self.underlying_context = underlying_context
 
     # FIXME: i'd raver have the argument list automatically extracted from subprocess.Popen
     def __call__(self, args, bufsize=0, executable=None, stdin=None, stdout=None, stderr=None, preexec_fn=None, close_fds=False, shell=False, cwd=None, env=None, universal_newlines=False, startupinfo=None, creationflags=0):
@@ -60,15 +72,35 @@ class SSHContext(object):
             # rather, arguments are always passed to be shell execued
             args = " ".join(quote(a) for a in args)
 
-        for (k, v) in env.iteritems():
+        for (k, v) in env.iteritems() if env is not None else ():
             # definition as given in dash man page:
             #     Variables set by the user must have a name consisting solely
             #     of alphabetics, numerics, and underscores - the first of
             #     which must not be numeric.
-            if k[0] in string.digits orany(_k not in string.ascii_letters + string.digits + '_' for _k in k):
+            if k[0] in string.digits or any(_k not in string.ascii_letters + string.digits + '_' for _k in k):
                 raise ValueError("The environment variable %r can not be set over SSH."%k)
 
             args = "%s=%s %s"%(quote(k), quote(v), args)
 
-        self.underlying_context((self.ssh_executable,) + self.ssh_args + (self.host, '--', args), bufsize=bufsize, stdin=stdin, stdout=stdout, stderr=stderr, preexec_fn=preexec_fn, close_fds=close_fds, universal_newlines=universal_newlines, startupinfo=startupinfo, creationflags=creationflags)
+        return self.underlying_context((self.ssh_executable,) + self.ssh_args + (self.host, '--', args), bufsize=bufsize, stdin=stdin, stdout=stdout, stderr=stderr, preexec_fn=preexec_fn, close_fds=close_fds, universal_newlines=universal_newlines, startupinfo=startupinfo, creationflags=creationflags)
 
+class SimpleLoggingContext(object):
+    """Logs only command execution, no results"""
+    def __init__(self, underlying_context=local, logmethod=logging.root.info):
+        self.underlying_context = underlying_context
+        self.logmethod = logmethod
+
+    def __call__(self, *args, **kwargs):
+        self.logmethod("Execution started: %s %s"%(args, kwargs))
+        self.underlying_context.__call__(*args, **kwargs)
+
+class ZipfileLoggingContext(object):
+    """Logs all executed commands into a ZIP file state machine"""
+    def __init__(self, zipfilename, underlying_context=local):
+        self.underlying_context = underlying_context
+        self.zipfile = zipfile.ZipFile(zipfilename, 'w')
+
+class ZipfileContext(object):
+    """Looks up cached command results from a ZIP file state machine."""
+    def __init__(self, zipfilename):
+        self.zipfile = zipfile.ZipFile(zipfilename)

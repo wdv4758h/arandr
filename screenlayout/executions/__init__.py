@@ -28,7 +28,7 @@ from . import context
 
 class ManagedExecution(object):
     def __init__(self, argv, context=context.local):
-        self.process = context(argv, std, close_fds=True)
+        self.process = context(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 
     def read(self):
         # currently, this does hardly more than subprocess.check_output.

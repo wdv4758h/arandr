@@ -324,6 +324,7 @@ def modifying(original_function, eval_from_self=False):
 
         args_for_simple_function = inspect.getargspec(simple_function).args
 
+        # FIXME: it would be more reliable if this used descriptors
         simple_function_is_method = args_for_simple_function[0] == 'self' # if true, assume we're decorating an unbound method that will be called bound and strip an arg
 
         def wrapped(*args, **kwargs):
