@@ -102,7 +102,7 @@ class SSHContext(StackingContext):
                 # sending it through *another* shell because when shell=True,
                 # the user can expect the environment variables to already be
                 # set when the expression is evaluated.
-                args = "".join(prefix_args) + "sh -c " + shell_quote(args)
+                args = "".join(prefix_args) + "exec sh -c " + shell_quote(args)
             else:
                 args = "".join(prefix_args) + args
 
