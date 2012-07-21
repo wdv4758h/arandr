@@ -41,11 +41,20 @@ from ..modifying import modifying
 
 local = subprocess.Popen
 
-class WithEnvironment(object):
+class StackingContext(object):
+    """Base class for contexts that delegate execution to an
+    `underlying_context`"""
+    def __init__(self, underlying_context=local):
+        self.underlying_context = underlying_context
+
+    def __repr__(self):
+        return '<%s context at %x atop %r>'%(type(self).__name__, id(self), self.underlying_context)
+
+class WithEnvironment(StackingContext):
     """Enforces preset environment variables upon executions"""
     def __init__(self, preset_environment, underlying_context=local):
         self.preset_environment = preset_environment
-        self.underlying_context = underlying_context
+        super(WithEnvironment, self).__init__(underlying_context)
 
     @modifying(lambda self: self.underlying_context, eval_from_self=True)
     def __call__(self, super, env):
@@ -55,13 +64,13 @@ class WithEnvironment(object):
             env = self.preset_environment
         return super(env=env)
 
-class SSHContext(object):
+class SSHContext(StackingContext):
     ssh_executable = '/usr/bin/ssh'
 
     def __init__(self, host, ssh_args=(), underlying_context=local):
         self.host = host
         self.ssh_args = ssh_args
-        self.underlying_context = underlying_context
+        super(SSHContext, self).__init__(underlying_context)
 
     @modifying(lambda self: self.underlying_context, eval_from_self=True)
     def __call__(self, super, args, env, shell, cwd, executable):
@@ -78,33 +87,43 @@ class SSHContext(object):
             # rather, arguments are always passed to be shell execued
             args = " ".join(shell_quote(a) for a in args)
 
-        for (k, v) in env.iteritems() if env is not None else ():
-            # definition as given in dash man page:
-            #     Variables set by the user must have a name consisting solely
-            #     of alphabetics, numerics, and underscores - the first of
-            #     which must not be numeric.
-            if k[0] in string.digits or any(_k not in string.ascii_letters + string.digits + '_' for _k in k):
-                raise ValueError("The environment variable %r can not be set over SSH."%k)
+        if env:
+            prefix_args = []
+            for (k, v) in env.iteritems() if env is not None else ():
+                # definition as given in dash man page:
+                #     Variables set by the user must have a name consisting solely
+                #     of alphabetics, numerics, and underscores - the first of
+                #     which must not be numeric.
+                if k[0] in string.digits or any(_k not in string.ascii_letters + string.digits + '_' for _k in k):
+                    raise ValueError("The environment variable %r can not be set over SSH."%k)
 
-            args = "%s=%s %s"%(shell_quote(k), shell_quote(v), args)
+                prefix_args += "%s=%s "%(shell_quote(k), shell_quote(v))
+            if shell == True:
+                # sending it through *another* shell because when shell=True,
+                # the user can expect the environment variables to already be
+                # set when the expression is evaluated.
+                args = "".join(prefix_args) + "sh -c " + shell_quote(args)
+            else:
+                args = "".join(prefix_args) + args
 
-        return super(args=(self.ssh_executable,) + self.ssh_args + (self.host, '--', args), shell=False)
+        return super(args=(self.ssh_executable,) + self.ssh_args + (self.host, '--', args), shell=False, env=None)
 
-class SimpleLoggingContext(object):
+class SimpleLoggingContext(StackingContext):
     """Logs only command execution, no results"""
     def __init__(self, underlying_context=local, logmethod=logging.root.info):
-        self.underlying_context = underlying_context
         self.logmethod = logmethod
+        super(SimpleLoggingContext, self).__init__(underlying_context)
 
-    def __call__(self, *args, **kwargs):
-        self.logmethod("Execution started: %s %s"%(args, kwargs))
-        self.underlying_context.__call__(*args, **kwargs)
+    @modifying(lambda self: self.underlying_context, eval_from_self=True)
+    def __call__(self, super, args, env):
+        self.logmethod("Execution started: %r within %r"%(args, env))
+        return super()
 
-class ZipfileLoggingContext(object):
+class ZipfileLoggingContext(StackingContext):
     """Logs all executed commands into a ZIP file state machine"""
     def __init__(self, zipfilename, underlying_context=local):
-        self.underlying_context = underlying_context
         self.zipfile = zipfile.ZipFile(zipfilename, 'w')
+        super(ZipfileLoggingContext, self).__init__(underlying_context)
 
 class ZipfileContext(object):
     """Looks up cached command results from a ZIP file state machine."""
