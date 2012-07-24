@@ -36,6 +36,6 @@ class ManagedExecution(object):
         stdout, stderr = self.process.communicate()
 
         if self.process.returncode != 0 or stderr:
-            raise subproces.CalledProcessError(self.process.returncode, self, stderr)
+            raise subprocess.CalledProcessError(self.process.returncode, self, stderr)
 
         return stdout

@@ -31,6 +31,8 @@ import functools
 import sys
 import zipfile
 import subprocess
+import os.path
+import StringIO
 
 if sys.version >= (3, 3):
     from shlex import quote as shell_quote
@@ -65,6 +67,15 @@ class WithEnvironment(StackingContext):
         return super(env=env)
 
 class SSHContext(StackingContext):
+    """Context that executes the process on another machine.
+
+    Caveats:
+        * The SSH context relies on the remote system to have a POSIX like
+          shell.
+        * Environment variables can only be set or explicitly unset; passing
+          them will not automatically unset all others (unlike with
+          subprocess.Popen)
+    """
     ssh_executable = '/usr/bin/ssh'
 
     def __init__(self, host, ssh_args=(), underlying_context=local):
@@ -120,12 +131,94 @@ class SimpleLoggingContext(StackingContext):
         return super()
 
 class ZipfileLoggingContext(StackingContext):
-    """Logs all executed commands into a ZIP file state machine"""
+    """Logs all executed commands into a ZIP file state machine. For a
+    description of the ZIP file format, see the ZipfileContext
+    documentation."""
+
     def __init__(self, zipfilename, underlying_context=local):
         self.zipfile = zipfile.ZipFile(zipfilename, 'w')
         super(ZipfileLoggingContext, self).__init__(underlying_context)
 
 class ZipfileContext(object):
-    """Looks up cached command results from a ZIP file state machine."""
+    """Looks up cached command results from a ZIP file state machine.
+
+    File format description
+    =======================
+
+    ZIP files for ZipfileContexts represent machine states and the results of
+    stored commands that take no standard input.
+
+    Command results (stdout, stderr, exit code, state machine transition) are
+    stored as the contents of individual files in the ZIP file, discerned by
+    their suffixes (.out, .err, .exit, .state). The command line is stored in
+    the first part of the file name, shell-escaped. (As shell escaping is not a
+    normalization, it might happen that even though a command was stored in the
+    ZIP file, it can not be looked up if it is escaped differently).
+
+    It is required for a .out file to exist, even if it is empty, as it
+    indicates that a result of the command was stored. All other files can be
+    absent and default to empty, 0, and no state change, respectively.
+
+    If a state is set in a ZipfileContext, all successive commands are prefixed
+    with that state, typically in a directory-structure-like fashion (i.e.
+    states end with slashes).
+
+    Caveats:
+
+    * No environment variables can be set.
+    * It is up to the user to make sure the commands of
+      different machine states don't clash, e.g. if you use an executable in a
+      relative path, `bin/ls`, and want to use the systems's `ls` in a machine
+      state you call `bin/`, you might be in trouble.
+    * When the ZIP file is opened with a utility that interprets file names
+      hierarchically, commands containing slashes (eg because they contain file
+      references) may appear spit at those slashes.
+    """
+
     def __init__(self, zipfilename):
+        self.state_prefix = ""
         self.zipfile = zipfile.ZipFile(zipfilename)
+
+    # not using @modifying here on purpose: whenever someone uses a strange
+    # argument, i want to know it and fail. close_fds can be ignored safely.
+    def __call__(self, args, shell=False, stdout=None, stderr=None, close_fds=False):
+        if stdout is not subprocess.PIPE or stderr is not subprocess.PIPE:
+            # a straightforward implementation would just write the whole
+            # contents there, but that might block while writing, and it would
+            # block the very process that is supposed to read in order to get
+            # the blocking away.
+            raise NotImplementedException("Using any other stdout/stderr options than subprocess.PIPE is not supported yet.")
+
+        if shell is False:
+            args = " ".join(map(shell_quote, args))
+
+        filename = self.state_prefix + args
+
+        stdout = self.zipfile.open(filename + ".out")
+        try:
+            stderr = self.zipfile.open(filename + ".err")
+        except KeyError:
+            stderr = StringIO.StringIO("")
+        try:
+            returncode = int(self.zipfile.open(filename + ".exit"))
+        except KeyError:
+            returncode = 0
+        try:
+            self.state_prefix = self.zipfile.open(filename + ".state")
+        except KeyError:
+            # as specified, no change happened
+            pass
+
+        return self.VirtualProcess(stdout, stderr, returncode)
+
+    class VirtualProcess(object):
+        def __init__(self, stdout, stderr, returncode):
+            self.stdout = stdout
+            self.stderr = stderr
+            self.returncode = returncode
+
+        def wait(self):
+            return self.returncode
+
+        def communicate(self):
+            return self.stdout.read(), self.stderr.read()

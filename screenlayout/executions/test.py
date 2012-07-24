@@ -22,11 +22,17 @@ class EnvironmentTests(unittest.TestCase):
         # when running this, make sure ssh to localhost works
         to_localhost = executions.context.SSHContext("localhost")
 
-        self.assertEqualWorkingJobs(['uname', '-a'], context=[to_localhost, executions.context.local])
+        both_contexts = [to_localhost, executions.context.local]
 
-        self.assertEqualWorkingJobs(['echo', '"spam"', 'egg\\spam'], context=[to_localhost, executions.context.local])
-        self.assertEqualWorkingJobs(['echo', ''.join(chr(x) for x in range(32, 256))], context=[to_localhost, executions.context.local])
-        self.assertEqualWorkingJobs('''echo "hello world!\\nthis is" 'fun', really''', context=[to_localhost, executions.context.local], shell=True)
+        self.assertEqualWorkingJobs(['uname', '-a'], context=both_contexts)
+
+        self.assertEqualWorkingJobs(['echo', '"spam"', 'egg\\spam'], context=both_contexts)
+        self.assertEqualWorkingJobs(['echo', ''.join(chr(x) for x in range(32, 256))], context=both_contexts)
+        self.assertEqualWorkingJobs('''echo "hello world!\\nthis is" 'fun', really''', shell=True, context=both_contexts)
+
+        complex_shell_expression = '''for x in a b `echo c`; do sh -c "(echo \\\\$x) && echo 1"; done; echo $x'''
+        self.assertEqualWorkingJobs(complex_shell_expression, shell=True, context=both_contexts)
+        self.assertEqualWorkingJobs(['sh', '-c', complex_shell_expression], context=both_contexts)
 
     def test_ssh_environment(self):
         base_context = executions.context.SimpleLoggingContext()
@@ -40,6 +46,13 @@ class EnvironmentTests(unittest.TestCase):
         # variable will not be forwarded over the ssh connection
         self.assertEqualWorkingJobs('echo x = $x', context=[plain_localhost, locally_set_env], shell=True)
         self.assertEqualWorkingJobs('echo x = $x', context=[just_set_env, remotely_set_env], shell=True)
+
+    def test_zipfiles(self):
+        zip_context = executions.context.ZipfileContext("./test.zip")
+
+        both_contexts = [zip_context, executions.context.local]
+
+        self.assertEqualWorkingJobs(['echo', '42'], context=both_contexts)
 
     @modifying(executions.ManagedExecution)
     def assertEqualWorkingJobs(self, super, context):
