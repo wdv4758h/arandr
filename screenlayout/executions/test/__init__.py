@@ -78,9 +78,3 @@ class EnvironmentTests(unittest.TestCase):
         first = results[0]
         for c, r in zip(context, results):
             self.assertEqual(first, r, "Disparity between contexts %s and %s: %r != %r"%(context[0], c, first, r))
-
-if __name__ == "__main__":
-    import logging
-#    logging.root.setLevel(logging.DEBUG)
-    logging.info("Starting test suite")
-    unittest.main()
