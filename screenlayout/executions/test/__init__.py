@@ -17,8 +17,8 @@
 import subprocess
 import unittest
 
-from .. import executions
-from ..modifying import modifying
+from ... import executions
+from ...modifying import modifying
 
 class EnvironmentTests(unittest.TestCase):
     def setUp(self):
