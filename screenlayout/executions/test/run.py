@@ -14,11 +14,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
+import logging
 import unittest
+
 from .. import test
 
-if __name__ == "__main__":
-    import logging
-#    logging.root.setLevel(logging.DEBUG)
+def main(verbose=False):
+    """Run the test suite of the executions package"""
+    if verbose:
+        logging.root.setLevel(logging.DEBUG)
     logging.info("Starting test suite")
     unittest.main(test)
+    doctest.testmod(test)
+
+if __name__ == "__main__":
+    main(verbose='--verbose' in sys.argv)

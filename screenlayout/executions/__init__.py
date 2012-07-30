@@ -39,3 +39,8 @@ class ManagedExecution(object):
             raise subprocess.CalledProcessError(self.process.returncode, self, stderr)
 
         return stdout
+
+    def read_with_error(self):
+        stdout, stderr = self.process.communicate()
+
+        return stdout, stderr, self.process.returncode

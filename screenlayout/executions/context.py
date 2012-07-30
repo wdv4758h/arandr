@@ -66,6 +66,16 @@ class WithEnvironment(StackingContext):
             env = self.preset_environment
         return super(env=env)
 
+class InDirectory(StackingContext):
+    """Enforce a working directory setting"""
+    def __init__(self, cwd, underlying_context=local):
+        self.cwd = cwd
+        super(InDirectory, self).__init__(underlying_context)
+
+    @modifying(lambda self: self.underlying_context, eval_from_self=True)
+    def __call__(self, super):
+        return super(cwd=self.cwd)
+
 class SSHContext(StackingContext):
     """Context that executes the process on another machine.
 
@@ -200,11 +210,11 @@ class ZipfileContext(object):
         except KeyError:
             stderr = StringIO.StringIO("")
         try:
-            returncode = int(self.zipfile.open(filename + ".exit"))
+            returncode = int(self.zipfile.open(filename + ".exit").read())
         except KeyError:
             returncode = 0
         try:
-            self.state_prefix = self.zipfile.open(filename + ".state")
+            self.state_prefix = self.zipfile.open(filename + ".state").read()
         except KeyError:
             # as specified, no change happened
             pass
