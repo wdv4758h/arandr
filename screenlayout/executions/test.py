@@ -14,14 +14,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
 import os
 import tempfile
 import subprocess
 import unittest
 import zipfile
+import logging
 
-from ... import executions
-from ...modifying import modifying
+from .. import executions
+from ..modifying import modifying
 
 def create_statemachine(outfilename="statemachine.zip"):
     """Manually creates a pre-defined ZIP file with a reasonably elaborate
@@ -91,13 +93,6 @@ class EnvironmentTests(unittest.TestCase):
         self.AssertEqualJobs('echo x = $x', context=[plain_localhost, locally_set_env], shell=True)
         self.AssertEqualJobs('echo x = $x', context=[just_set_env, remotely_set_env], shell=True)
 
-    def test_zipfiles(self):
-        zip_context = executions.context.ZipfileContext("./test.zip")
-
-        both_contexts = [zip_context, executions.context.local]
-
-        self.AssertEqualJobs(['echo', '42'], context=both_contexts)
-
     def test_zipfile_crafted(self):
         testdir = tempfile.mkdtemp()
         filename = os.path.join(testdir, "statemachine.zip")
@@ -135,3 +130,14 @@ class EnvironmentTests(unittest.TestCase):
         first = results[0]
         for c, r in zip(context, results):
             self.assertEqual(first, r, "Disparity between contexts %s and %s: %r != %r"%(context[0], c, first, r))
+
+
+def main(verbose=False):
+    """Run the test suite of the executions package"""
+    if verbose:
+        logging.root.setLevel(logging.DEBUG)
+    logging.info("Starting test suite")
+    unittest.main()
+
+if __name__ == "__main__":
+    main(verbose='--verbose' in sys.argv)
