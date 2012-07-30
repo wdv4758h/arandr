@@ -20,6 +20,8 @@ import inspect
 
 from collections import OrderedDict
 
+HIDE = object() # sentinel value
+
 def _getargspec(func):
     """Wrapper around getargspec that is enhanced
 
@@ -231,7 +233,7 @@ def _join_argspecs(orig_func, updating_func):
 
     return inspect.ArgSpec(orig.args, orig.varargs, orig.keywords, tuple(sorted_defaults))
 
-def modifying(original_function, eval_from_self=False):
+def modifying(original_function, eval_from_self=False, hide=()):
     """Wraps a function in a way that it can be used as a drop-in replacement,
     signature-wise, for a function whose signature is overly complex. It also
     takes care of argument default values in the complex function, and passes
@@ -313,6 +315,16 @@ def modifying(original_function, eval_from_self=False):
     >>> different_f(1, 2, 3)
     3 new_d
 
+    Arguments to the modified function that should *not* be passed to super can
+    be explicitly supressed by passing the modifying.HIDE value; those
+    arguments can only be passed in from outside as keyword arguments:
+
+    >>> @modifying(f, hide=["new_param"])
+    ... def better_f(super, c, new_param):
+    ...     super(c=new_param*c)
+    >>> better_f(1, 2, 3, new_param=3)
+    9 d
+
     In a way, it is a generalization of functools.partial, as it can replicate
     its behavior.
 
@@ -348,12 +360,12 @@ def modifying(original_function, eval_from_self=False):
                 raise ValueError("Original function must not have *args or **kwargs.")
 
             argspec_for_evalargs = _join_argspecs(_original_function, simple_function)
-            expected, args, kwargs = evalargs(argspec_for_evalargs, *args, **kwargs)
+            joint_expected, joint_args, joint_kwargs = evalargs(argspec_for_evalargs, *args, **(dict((k,v) for (k,v) in kwargs.items() if k not in hide)))
 
             def super(**overrides):
-                all_kwargs = dict(expected)
-                if kwargs is not None:
-                    all_kwargs.update(kwargs)
+                all_kwargs = dict(joint_expected)
+                if joint_kwargs is not None:
+                    all_kwargs.update(joint_kwargs)
                 # the above two (expected vs kwargs) could just as well be the
                 # other way round too -- evalargs alreay makes sure there are
                 # no duplicates
@@ -366,17 +378,22 @@ def modifying(original_function, eval_from_self=False):
                 # anyway.
                 all_kwargs.update(overrides)
 
-                return _original_function(*(args if args is not None else ()), **all_kwargs)
+                return _original_function(*(joint_args if joint_args is not None else ()), **all_kwargs)
 
             kwargs_for_simple = {}
             for a in args_for_simple_function:
-                if a in expected:
-                    kwargs_for_simple[a] = expected[a]
-                elif kwargs is not None and a in kwargs:
-                    kwargs_for_simple[a] = kwargs[a]
+                if a in joint_expected:
+                    kwargs_for_simple[a] = joint_expected[a]
+                elif joint_kwargs is not None and a in joint_kwargs:
+                    kwargs_for_simple[a] = joint_kwargs[a]
                 else:
                     # hope it has a default
                     pass
+
+            # feed hidden arguments back again
+            for hidden_argument in hide:
+                if hidden_argument in kwargs:
+                    kwargs_for_simple[hidden_argument] = kwargs[hidden_argument]
 
             if simple_function_is_method:
                 return simple_function(self, super, **kwargs_for_simple)
