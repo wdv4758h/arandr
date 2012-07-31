@@ -137,7 +137,7 @@ class SimpleLoggingContext(StackingContext):
 
     @modifying(lambda self: self.underlying_context, eval_from_self=True)
     def __call__(self, super, args, env):
-        self.logmethod("Execution started: %r within %r"%(args, env))
+        self.logmethod("Execution started: %r within environment %r on %r"%(args, env, self.underlying_context))
         return super()
 
 class ZipfileLoggingContext(StackingContext):
