@@ -21,6 +21,7 @@ import subprocess
 import unittest
 import zipfile
 import logging
+import functools
 
 from .. import executions
 from ..modifying import modifying
@@ -116,6 +117,32 @@ class EnvironmentTests(unittest.TestCase):
 
         os.unlink(filename)
         os.rmdir(testdir)
+
+    def test_zipfile_creating(self):
+        testdir = tempfile.mkdtemp()
+        filename = os.path.join(testdir, "persistence.zip")
+
+        in_tempdir = executions.context.InDirectory(testdir)
+        zip_creating_context = executions.context.ZipfileLoggingContext(filename, underlying_context=in_tempdir)
+
+        def run_some_commands(runner):
+            runner('''echo  "spam" eggs 'spam spam';''', shell=True)
+            runner(['false'])
+            runner('ls testfile', shell=True)
+            runner(['touch', 'testfile'])
+            runner('ls testfile', shell=True)
+            # as everything here is happening in the tempdir, we gotta clean up again because we'll run this twice
+            runner('rm testfile', shell=True)
+
+        # let everything just run through, don't check outputs
+        run_some_commands(modifying(executions.ManagedExecution)(lambda super: super(context=zip_creating_context).read_with_error()))
+
+        zip_creating_context.close()
+
+        zip_reading_context = executions.context.ZipfileContext(filename)
+
+        both_contexts = [zip_reading_context, in_tempdir]
+        run_some_commands(functools.partial(self.AssertEqualJobs, context=both_contexts, accept_errors=True))
 
     @modifying(executions.ManagedExecution, hide=['accept_errors'])
     def AssertEqualJobs(self, super, context, accept_errors=False):

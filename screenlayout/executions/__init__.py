@@ -33,9 +33,9 @@ class ManagedExecution(object):
 
     def read(self):
         # currently, this does hardly more than subprocess.check_output.
-        stdout, stderr = self.process.communicate()
+        stdout, stderr, returncode = self.read_with_error()
 
-        if self.process.returncode != 0 or stderr:
+        if returncode != 0 or stderr:
             raise subprocess.CalledProcessError(self.process.returncode, self, stderr)
 
         return stdout
@@ -43,4 +43,12 @@ class ManagedExecution(object):
     def read_with_error(self):
         stdout, stderr = self.process.communicate()
 
-        return stdout, stderr, self.process.returncode
+        retcode = self.process.returncode
+
+        # this is a hack, but one that's not easy to enhance. this line is only
+        # used for context.ZipfileLoggingContext, see the comments there.
+        if hasattr(self.process, '_finished_execution'):
+            self.process._finished_execution(stdout, stderr, retcode)
+            del self.process._finished_execution
+
+        return stdout, stderr, retcode

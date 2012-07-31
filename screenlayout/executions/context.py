@@ -99,10 +99,10 @@ class SSHContext(StackingContext):
             # i'm afraid this can't be implemented easily; there might be a way
             # to wrap the command in *another* shell execution and make that
             # shell do the trick
-            raise NotImplementedException("The executable option is not usable with an SSHContext.")
+            raise NotImplementedError("The executable option is not usable with an SSHContext.")
         if cwd:
             # should be rather easy to implement
-            raise NotImplementedException("The cwd option is not usable with an SSHContext.")
+            raise NotImplementedError("The cwd option is not usable with an SSHContext.")
         if not shell:
             # with ssh, there is no way of passing individual arguments;
             # rather, arguments are always passed to be shell execued
@@ -143,11 +143,69 @@ class SimpleLoggingContext(StackingContext):
 class ZipfileLoggingContext(StackingContext):
     """Logs all executed commands into a ZIP file state machine. For a
     description of the ZIP file format, see the ZipfileContext
-    documentation."""
+    documentation.
 
-    def __init__(self, zipfilename, underlying_context=local):
+    If store_states is False, commands will be assumed not to modify any state
+    at all (resulting in a flat ZIP file). Otherwise, states will be
+    continuously numbered, and the ZIP file can only be replayed in the same
+    sequence. More fine-grained control is possible by passing a next_state
+    argument to the process generation.
+
+    The context has to be closed using its close() method.
+
+    Caveat: This context must be used inside a ManagedExecution (or anything
+    else that calls the process's _finished_execution(stdout_data, stderr_data,
+    retcode) after the execution). The reason for this hack is that it's hard
+    to emulate a 'tee' in the stdout/stderr pair: As long as stdout/stderr are
+    just accessed with .read(), it could be emulated by creating a file-like
+    object that catches the read function, but when the process's
+    .communicate() is used, it reads the files by means of os.read(fileno), and
+    emulating that would mean either overriding the complete .communicate()
+    method or creating a os-level file like object.
+    """
+
+    def __init__(self, zipfilename, store_states=True, underlying_context=local):
         self.zipfile = zipfile.ZipFile(zipfilename, 'w')
+        self.store_states = True
+        self.current_state = ""
+        self._incrementing_state_number = 0
         super(ZipfileLoggingContext, self).__init__(underlying_context)
+
+    @modifying(lambda self: self.underlying_context, eval_from_self=True, hide=['next_state'])
+    def __call__(self, super, args, shell, next_state=None):
+        base_state = self.current_state
+        if next_state is None:
+            if self.store_states:
+                self._incrementing_state_number += 1
+                next_state = "%d/"%self._incrementing_state_number
+            else:
+                next_state = self.current_state
+        self.current_state = next_state
+
+        real_process = super()
+
+        condensed_args = args if shell else " ".join(map(shell_quote, args))
+
+        real_process._finished_execution = lambda stdout, stderr, retcode: self.store(condensed_args, stdout, stderr, retcode, base_state, next_state)
+
+        return real_process
+
+    def store(self, args, stdout, stderr, returncode, base_state, next_state):
+        name = base_state + args
+
+        self.zipfile.writestr(name + ".out", stdout)
+        if stderr:
+            self.zipfile.writestr(name + ".err", stderr)
+        if returncode:
+            self.zipfile.writestr(name + ".exit", str(returncode))
+        if next_state != base_state:
+            self.zipfile.writestr(name + ".state", next_state)
+
+    def close(self):
+        self.zipfile.close()
+
+    def __del__(self):
+        self.close()
 
 class ZipfileContext(object):
     """Looks up cached command results from a ZIP file state machine.
@@ -197,7 +255,7 @@ class ZipfileContext(object):
             # contents there, but that might block while writing, and it would
             # block the very process that is supposed to read in order to get
             # the blocking away.
-            raise NotImplementedException("Using any other stdout/stderr options than subprocess.PIPE is not supported yet.")
+            raise NotImplementedError("Using any other stdout/stderr options than subprocess.PIPE is not supported yet.")
 
         if shell is False:
             args = " ".join(map(shell_quote, args))
