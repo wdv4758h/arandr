@@ -24,6 +24,7 @@ import logging
 import functools
 
 from .. import executions
+from ..executions import context
 from ..modifying import modifying
 
 def create_statemachine(outfilename="statemachine.zip"):
@@ -59,17 +60,17 @@ class EnvironmentTests(unittest.TestCase):
         subprocess.check_call(['ssh', 'localhost', 'true'])
 
     def test_chainedWithEnvironment(self):
-        env1 = executions.context.WithEnvironment({'x': '42'})
-        env2 = executions.context.WithEnvironment({'y': '23'}, underlying_context=env1)
+        env1 = context.WithEnvironment({'x': '42'})
+        env2 = context.WithEnvironment({'y': '23'}, underlying_context=env1)
 
         job = executions.ManagedExecution(['env'], context=env2)
         self.assertEqual(job.read(), "y=23\nx=42\n")
 
     def test_ssh_escapes(self):
         # when running this, make sure ssh to localhost works
-        to_localhost = executions.context.SSHContext("localhost")
+        to_localhost = context.SSHContext("localhost")
 
-        both_contexts = [to_localhost, executions.context.local]
+        both_contexts = [to_localhost, context.local]
 
         self.AssertEqualJobs(['uname', '-a'], context=both_contexts)
 
@@ -82,13 +83,13 @@ class EnvironmentTests(unittest.TestCase):
         self.AssertEqualJobs(['sh', '-c', complex_shell_expression], context=both_contexts)
 
     def test_ssh_environment(self):
-        base_context = executions.context.SimpleLoggingContext()
+        base_context = context.SimpleLoggingContext()
 
-        just_set_env = executions.context.WithEnvironment({"x": "23"}, underlying_context=base_context)
-        locally_set_env = executions.context.SSHContext("localhost", underlying_context=just_set_env)
+        just_set_env = context.WithEnvironment({"x": "23"}, underlying_context=base_context)
+        locally_set_env = context.SSHContext("localhost", underlying_context=just_set_env)
 
-        plain_localhost = executions.context.SSHContext("localhost", underlying_context=base_context)
-        remotely_set_env = executions.context.WithEnvironment({"x": "23"}, underlying_context=plain_localhost)
+        plain_localhost = context.SSHContext("localhost", underlying_context=base_context)
+        remotely_set_env = context.WithEnvironment({"x": "23"}, underlying_context=plain_localhost)
 
         # variable will not be forwarded over the ssh connection
         self.AssertEqualJobs('echo x = $x', context=[plain_localhost, locally_set_env], shell=True)
@@ -100,8 +101,8 @@ class EnvironmentTests(unittest.TestCase):
 
         create_statemachine(filename)
 
-        zip_context = executions.context.ZipfileContext(filename)
-        in_tempdir = executions.context.InDirectory(testdir)
+        zip_context = context.ZipfileContext(filename)
+        in_tempdir = context.InDirectory(testdir)
 
         both_contexts = [zip_context, in_tempdir]
 
@@ -122,8 +123,8 @@ class EnvironmentTests(unittest.TestCase):
         testdir = tempfile.mkdtemp()
         filename = os.path.join(testdir, "persistence.zip")
 
-        in_tempdir = executions.context.InDirectory(testdir)
-        zip_creating_context = executions.context.ZipfileLoggingContext(filename, underlying_context=in_tempdir)
+        in_tempdir = context.InDirectory(testdir)
+        zip_creating_context = context.ZipfileLoggingContext(filename, underlying_context=in_tempdir)
 
         def run_some_commands(runner):
             runner('''echo  "spam" eggs 'spam spam';''', shell=True)
@@ -139,7 +140,7 @@ class EnvironmentTests(unittest.TestCase):
 
         zip_creating_context.close()
 
-        zip_reading_context = executions.context.ZipfileContext(filename)
+        zip_reading_context = context.ZipfileContext(filename)
 
         both_contexts = [zip_reading_context, in_tempdir]
         run_some_commands(functools.partial(self.AssertEqualJobs, context=both_contexts, accept_errors=True))
