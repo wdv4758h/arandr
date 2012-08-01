@@ -23,6 +23,7 @@ import gobject, gtk
 from .auxiliary import Position, Size, NORMAL, ROTATIONS, InadequateConfiguration
 from .xrandr import XRandR
 from .snap import Snap
+import executions
 
 import gettext
 gettext.install('arandr')
@@ -33,7 +34,7 @@ class ARandRWidget(gtk.DrawingArea):
             'changed':(gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
             }
 
-    def __init__(self, factor=8, display=None, force_version=False):
+    def __init__(self, factor=8, context=executions.context.local, force_version=False):
         super(ARandRWidget, self).__init__()
 
         self._factor = factor
@@ -45,7 +46,7 @@ class ARandRWidget(gtk.DrawingArea):
 
         self.setup_draganddrop()
 
-        self._xrandr = XRandR(display=display, force_version=force_version)
+        self._xrandr = XRandR(context=context, force_version=force_version)
 
     #################### widget features ####################
 

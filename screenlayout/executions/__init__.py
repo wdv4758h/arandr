@@ -24,6 +24,7 @@ capturing stdout, watching stderr, nonblocking execution (FIXME: not yet) and
 execution contexts (see executions.context)."""
 
 import subprocess
+from subprocess import CalledProcessError # explicitly imported so users don't have to import subprocess to catch exceptions
 
 class ManagedExecution(object):
     # not context=contexts.local, because that would create a circular dependency between the modules
@@ -36,7 +37,7 @@ class ManagedExecution(object):
         stdout, stderr, returncode = self.read_with_error()
 
         if returncode != 0 or stderr:
-            raise subprocess.CalledProcessError(self.process.returncode, self, stderr)
+            raise CalledProcessError(self.process.returncode, self, stderr)
 
         return stdout
 

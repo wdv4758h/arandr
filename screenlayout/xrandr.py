@@ -17,7 +17,8 @@
 """Wrapper around command line xrandr (only 1.2 per output features supported)"""
 
 import os
-import subprocess
+import executions
+import executions.context
 import warnings
 
 from .auxiliary import BetterList, Size, Position, Geometry, FileLoadError, FileSyntaxError, InadequateConfiguration, Rotation, ROTATIONS, NORMAL
@@ -30,12 +31,12 @@ SHELLSHEBANG='#!/bin/sh'
 class XRandR(object):
     DEFAULTTEMPLATE = [SHELLSHEBANG, '%(xrandr)s']
 
-    def __init__(self, display=None, force_version=False):
-        """Create proxy object and check for xrandr at `display`. Fail with
-        untested versions unless `force_version` is True."""
-        self.environ = dict(os.environ)
-        if display:
-            self.environ['DISPLAY'] = display
+    def __init__(self, context=executions.context.local, force_version=False):
+        """Create proxy object and check for xrandr at the given
+        executions.context. Fail with untested versions unless `force_version`
+        is True."""
+
+        self.context = context
 
         version_output = self._output("--version")
         if not ("1.2" in version_output or "1.3" in version_output) and not force_version:
@@ -49,14 +50,11 @@ class XRandR(object):
     #################### calling xrandr ####################
 
     def _output(self, *args):
-        p = subprocess.Popen(("xrandr",)+args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.environ)
-        ret, err = p.communicate()
-        status = p.wait()
-        if status!=0:
-            raise Exception("XRandR returned error code %d: %s"%(status,err))
-        if err:
-            warnings.warn("XRandR wrote to stderr, but did not report an error (Message was: %r)"%err)
-        return ret
+        # FIXME: the exception thrown should be beautiful enough to be presentable
+        try:
+            return executions.ManagedExecution(("xrandr",) + args, context=self.context).read()
+        except executions.CalledProcessError as e:
+            raise Exception("XRandR returned error code %d: %s"%(e.returncode, e.output))
 
     def _run(self, *args):
         self._output(*args)
