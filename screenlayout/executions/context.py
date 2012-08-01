@@ -39,6 +39,7 @@ if sys.version >= (3, 3):
 else:
     from pipes import quote as shell_quote
 
+from .. import executions
 from ..modifying import modifying
 
 local = subprocess.Popen
@@ -50,7 +51,7 @@ class StackingContext(object):
         self.underlying_context = underlying_context
 
     def __repr__(self):
-        return '<%s context at %x atop %r>'%(type(self).__name__, id(self), self.underlying_context)
+        return '<%s at %x atop %r>'%(type(self).__name__, id(self), self.underlying_context)
 
 class WithEnvironment(StackingContext):
     """Enforces preset environment variables upon executions"""
@@ -65,6 +66,49 @@ class WithEnvironment(StackingContext):
         else:
             env = self.preset_environment
         return super(env=env)
+
+class WithXEnvironment(WithEnvironment):
+    """Context that, upon execution of the first command, tries to autodetect a
+    running X session and sets environment variables on the commands in a way
+    that X11 progams can be executed.
+
+    This is particularly useful atop a SSH connection; in that context, it is
+    not SSH X forwarding that is used, but the programs will be both executed
+    and displayed remotely."""
+
+    def __init__(self, underlying_context=local):
+        self.preset_environment = None
+        StackingContext.__init__(self, underlying_context)
+
+    @modifying(lambda self: super(WithXEnvironment, self).__call__, eval_from_self=True)
+    def __call__(self, super):
+        if self.preset_environment is None:
+            self.determine_environment()
+
+        return super()
+
+    def determine_environment(self):
+        displays = executions.ManagedExecution('grep --no-filename --text --null-data "^DISPLAY=" /proc/*/environ 2>/dev/null |sort --zero-terminated --unique', shell=True, context=self.underlying_context).read().split("\0")
+
+        displays = (line.split('=', 1)[1] for line in displays if line)
+
+        # the DISPLAY variable is sometimes set with and sometimes without
+        # screennumber. according to X(7), the screen number defaults to 0, so
+        # stripping it off should provide sufficient normalization.
+        displays = set(d[:-2] if d.endswith('.0') else d for d in displays)
+
+        if not displays:
+            raise self.NoEnvironmentFound()
+        if len(displays) != 1:
+            raise self.AmbiguousEnvironmentFound()
+
+        (display, ) = displays
+
+        self.preset_environment = {'DISPLAY': display}
+
+    class NoEnvironmentFound(Exception): "No usable X11 display was found."
+
+    class AmbiguousEnvironmentFound(Exception): "More than one X11 display found. (And hinting not yet implemented.)"
 
 class InDirectory(StackingContext):
     """Enforce a working directory setting"""

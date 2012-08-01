@@ -24,10 +24,10 @@ capturing stdout, watching stderr, nonblocking execution (FIXME: not yet) and
 execution contexts (see executions.context)."""
 
 import subprocess
-from . import context
 
 class ManagedExecution(object):
-    def __init__(self, argv, context=context.local, shell=False):
+    # not context=contexts.local, because that would create a circular dependency between the modules
+    def __init__(self, argv, context=subprocess.Popen, shell=False):
         # i don't recommend using shell=True, but it's useful for testing the ssh wrapper
         self.process = context(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, shell=shell)
 

@@ -34,6 +34,7 @@ def main():
     p.add_argument('--zip-in', metavar='FILE', help="Use FILE to look up command results there instead of executing them locally")
     p.add_argument('--zip-out', metavar='FILE', help="Store all commands and their results in the FILE")
     p.add_argument('--ssh', metavar='HOST', help="Execute the commands remotely on HOST")
+    p.add_argument('--auto-x', action='store_true', help="Automatically find a running X session and redirect graphical output there")
     p.add_argument('--verbose', action='store_true', help="Log all executed commands")
 
     args = p.parse_args()
@@ -58,6 +59,12 @@ def main():
                 c = context.SimpleLoggingContext(underlying_context=c)
 
             c = context.SSHContext(args.ssh, underlying_context=c)
+
+    if args.auto_x:
+            if args.verbose:
+                c = context.SimpleLoggingContext(underlying_context=c)
+
+            c = context.WithXEnvironment(underlying_context=c)
 
     if args.zip_out:
         c = context.ZipfileLoggingContext(args.zip_out, underlying_context=c)
