@@ -23,6 +23,7 @@ In extension of the subprocess module, this contains helper routines for
 capturing stdout, watching stderr, nonblocking execution (FIXME: not yet) and
 execution contexts (see executions.context)."""
 
+import warnings
 import subprocess
 from subprocess import CalledProcessError # explicitly imported so users don't have to import subprocess to catch exceptions
 
@@ -32,12 +33,30 @@ class ManagedExecution(object):
         # i don't recommend using shell=True, but it's useful for testing the ssh wrapper
         self.process = context(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, shell=shell)
 
-    def read(self):
-        # currently, this does hardly more than subprocess.check_output.
+        self.argv = argv # only needed for __str__ and __repr__, but very useful there
+
+    def read_paranoid(self):
+        """Report the process' result, and assume that not only the return code
+        was 0, but also that stderr was empty."""
         stdout, stderr, returncode = self.read_with_error()
 
         if returncode != 0 or stderr:
             raise CalledProcessError(self.process.returncode, self, stderr)
+
+        return stdout
+
+    def read(self):
+        # currently, this does hardly more than subprocess.check_output.
+        """Report the process' result, and assume that the return code was 0.
+        If something was printed to stderr, a warning is issued."""
+
+        stdout, stderr, returncode = self.read_with_error()
+
+        if returncode != 0:
+            raise CalledProcessError(self.process.returncode, self, stderr)
+
+        if stderr:
+            warnings.warn("%s had output to stderr, but did not report an error (Message was: %r)"%(self, stderr))
 
         return stdout
 
@@ -53,3 +72,9 @@ class ManagedExecution(object):
             del self.process._finished_execution
 
         return stdout, stderr, retcode
+
+    def __str__(self):
+        return "Process %r"%" ".join(self.argv)
+
+    def __repr__(self):
+        return "<ManagedExecution of %r>"%self.argv
