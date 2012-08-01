@@ -127,6 +127,20 @@ class install_data(_install_data):
 
         _install_data.run(self)
 
+class TestCommand(NoOptionCommand):
+    description = "Run all the unit- and doctests in this package"
+
+    def run(self):
+        import screenlayout.modifying
+        screenlayout.modifying.test(screenlayout.modifying)
+
+        # resolve problems between unittest and distutils in a brutal way
+        import sys
+        sys.argv = [sys.argv[0]]
+
+        import screenlayout.executions.test
+        screenlayout.executions.test.main()
+
 class sdist(_sdist):
     def run(self):
         warn("WARNING: Usually, arandr's source tarballs are generated from `git archive`!")
@@ -173,6 +187,7 @@ setup(name = PACKAGENAME,
             'clean': clean,
             'update_pot': update_pot,
             'update_po': update_po,
+            'test': TestCommand,
             },
         data_files = [
             ('share/applications', ['data/arandr.desktop']), # FIXME: use desktop-file-install?

@@ -276,7 +276,7 @@ def modifying(original_function, eval_from_self=False, hide=()):
     ...     return super()
     >>> A_factory(1, 2)
     Creating a 'c' style A
-    <__main__.A object at ...>
+    <....A object at ...>
 
     ... and for decorating methods:
 
@@ -414,6 +414,9 @@ def modifying(original_function, eval_from_self=False, hide=()):
         return wrapped
     return decorator
 
-if __name__ == "__main__":
+def test(module=None):
     import doctest
-    doctest.testmod(optionflags=doctest.ELLIPSIS)
+    doctest.testmod(module, optionflags=doctest.ELLIPSIS)
+
+if __name__ == "__main__":
+    test()
