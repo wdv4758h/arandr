@@ -1,0 +1,86 @@
+===============================
+ARandR: Developer documentation
+===============================
+
+
+This text describes the ARandR_ program for people who intend to understand how
+it works. While ARandR is written in Python and appropriately keeps most of its
+developer documentation in docstrings in the source code, some generic concepts
+don't have a good place to store inside the source code, and are thus described
+here.
+
+Source code
+===========
+
+ARandR's source code is managed in git and `kept at gitorious`_ -- it can be
+checked out anonymously at ``git://gitorious.org/arandr/arandr.git``.
+
+The git tree is split in a ``release``, a ``master`` branch, and -- on occasion
+-- feature branches, in descending order of maturity. When merging to a less
+mature branch into a more mature branch, always use the ``--no-ff`` option put
+meaningful text in the commit message: Merges to ``release`` get the
+appropriate section from the ``NEWS`` file as commit message, merges to
+``master`` a description of the new feture for automatic inclusion in the
+``ChangeLog``. For details on ``NEWS`` and ``ChangeLog``, see
+`README.release`_.
+
+All of ARandR's source code is written in Python, and in line with common
+Python best practice (`PEP 8`_ in a moderate interpretation, `Zen of Python`_).
+Compatibility with Python versions older than 2.7 is no longer intended; there
+is no plan for migration to Python 3 yet.
+
+The following modules are used that the developer should be aware of:
+
+* gettext_: Every message that is intended for end users has to be wrapped in
+  ``_(...)`` or a more appropriate gettext function.
+* GTK_: For the time being, ARandR uses old style ``pygtk`` instead of GTK-3
+  with introspected wrappers. This is supposed to change. Anyway, as a
+  graphical program, there should be no extended blocking operations going on.
+
+Files that are neither plain text documentation nor Python code are stored in
+``data/``; there reside man pages, a `desktop`_ file, and the ``.po`` and
+``.pot`` files for gettext (localization).
+
+xrandr handling
+===============
+
+ARandR, while aiming to be usable as an ad-hoc screen layout editor, is, deep
+at its core, not a GUI for ``xrandr``, but a GUI for editing shell scripts that
+invoke ``xrandr``. As those can not be reasonably edited without knowledge of
+possibilities of the X server they are supposed to run on, ARandR invokes
+``xrandr`` directly and internally represents its configuration.
+
+As a consequence, XRandR stuff is handled in two different kinds of objects:
+
+* ``screenlayout.xrandr.Server``: A server's state, basically an internal
+  representation of ``xrandr --verbose``. While not technically an immutable
+  object, it gets created once and is not modified after. After a modification
+  is applied, a new ``Server`` object is created as a part of the reloading
+  process.
+
+* ``screenlayout.xrandr.Transition``: A recipe for changing a server's state,
+  basically an internal representation of a modifying ``xrandr`` invocation. A
+  ``Transition`` is always *bound* to a ``Server``, as its validity can only be
+  established when it is known on which server it is to be executed.
+
+  A transition can be modified in place (e.g. "enable output VGA"), and will
+  verify on its own whether it is still valid after that modification on the
+  server it is bound to, and raise an exception if not.
+
+  Transition objects can be instructed to load values from the server. With
+  ARandR, this happens by default (eg for output positions and modes); thus,
+  users can open up ARandR when the outputs are already configured as they
+  should be, save the configuration, and when the saved configuration is
+  loaded, the old configuration will be restored.
+
+The screenlayout widget, i.e. the visual component of ARandR, always shows a
+``Transition``.
+
+.. _ARandR: http://christian.amsuess.com/tools/arandr/
+ .. _`kept at gitorious`: http://gitorious.org/arandr/arandr
+.. _`Zen of Python`: http://www.python.org/dev/peps/pep-0020/
+.. _`PEP 8`: http://www.python.org/dev/peps/pep-0008/
+.. _`README.release`: ./README.release
+.. _`.desktop`: http://standards.freedesktop.org/desktop-entry-spec/latest/
+.. _gettext: http://www.gnu.org/software/gettext/
+.. _GTK: http://www.pygtk.org/

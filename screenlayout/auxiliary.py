@@ -22,6 +22,9 @@ class FileLoadError(Exception): pass
 class FileSyntaxError(FileLoadError):
     """A file's syntax could not be parsed."""
 
+class XRandRParseError(Exception):
+    """The output of XRandR didn't fulfill the program's expectations"""
+
 class InadequateConfiguration(Exception):
     """A configuration is incompatible with the current state of X."""
 
@@ -93,20 +96,27 @@ class Geometry(tuple):
     position = property(lambda self:Position(self[2:4]))
     size = property(lambda self:Size(self[0:2]))
 
+class FlagClass(type):
+    def __init__(self, name, bases, dict):
+        super(FlagClass, self).__init__(name, bases, dict)
 
-class Rotation(str):
-    """String that represents a rotation by a multiple of 90 degree"""
-    def __init__(self, original_me):
-        if self not in ('left','right','normal','inverted'):
-            raise Exception("No know rotation.")
-    is_odd = property(lambda self: self in ('left','right'))
-    _angles = {'left':pi/2,'inverted':pi,'right':3*pi/2,'normal':0}
-    angle = property(lambda self: Rotation._angles[self])
+        if 'values' in dict: # guard agains error on Flag class
+            self.values = [super(FlagClass, self).__call__(x) for x in dict['values']]
+
+            for v in self.values:
+                setattr(self, str.__str__(v), v)
+
+    def __call__(self, label):
+        if label in self.values:
+            return self.values[self.values.index(label)]
+
+        if hasattr(self, 'aliases') and label in self.aliases:
+            return self(self.aliases[label])
+
+        raise ValueError("No such %s flag: %r"%(self.__name__, label))
+
+class Flag(str):
+    __metaclass__ = FlagClass
+
     def __repr__(self):
-        return '<Rotation %s>'%self
-
-LEFT = Rotation('left')
-RIGHT = Rotation('right')
-INVERTED = Rotation('inverted')
-NORMAL = Rotation('normal')
-ROTATIONS = (NORMAL, RIGHT, INVERTED, LEFT)
+        return '<%s "%s">'%(type(self).__name__, self)

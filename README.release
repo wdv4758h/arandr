@@ -1,4 +1,6 @@
-checklist before release:
+=========================
+ARandR: Release checklist
+=========================
 
  * work on branch master
  * set version in `setup.py` and `screenlayout/meta.py`
