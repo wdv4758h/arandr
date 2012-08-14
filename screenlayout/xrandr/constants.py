@@ -28,3 +28,6 @@ class Reflection(Flag):
 
 class ModeFlag(Flag):
     values = ['+HSync', '-HSync', '+VSync', '-VSync', 'Interlace', 'DoubleScan', '+CSync', '-CSync', 'CSync']
+
+class SubpixelOrder(Flag):
+    values = ['unknown', 'horizontal rgb', 'horizontal bgr', 'vertical rgb', 'vertical bgr', 'no subpixels']

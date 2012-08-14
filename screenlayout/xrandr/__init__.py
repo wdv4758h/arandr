@@ -26,7 +26,7 @@ from ..executions.context import local as local_context
 
 from ..auxiliary import BetterList, Size, Position, Geometry, FileLoadError, FileSyntaxError, InadequateConfiguration, XRandRParseError
 
-from .constants import Rotation, Reflection, ModeFlag
+from .constants import Rotation, Reflection, ModeFlag, SubpixelOrder
 
 import gettext
 gettext.install('arandr')
@@ -107,10 +107,10 @@ class Server(object):
             modes = []
 
             while lines and lines[0].startswith('\t'):
-                details.append(lines.pop(0))
+                details.append(lines.pop(0)[1:])
 
             while lines and lines[0].startswith(' '):
-                modes.append(lines.pop(0))
+                modes.append(lines.pop(0)[2:])
 
             # headline, details and modes filled; interpret the data before
             # going through this again
@@ -199,12 +199,12 @@ class Server(object):
 
     class ServerAssignedMode(Mode):
         XRANDR_EXPRESSIONS = [
-                re.compile("^  (?P<name>.+) +"
+                re.compile("^(?P<name>.+) +"
                     "\(0x(?P<mode_id>[0-9a-fA-F]+)\) +"
                     "(?P<pixelclock>[0-9]+\.[0-9]+)MHz"
                     "(?P<flags>( ([+-][HVC]Sync|Interlace|DoubleScan|CSync))*)"
                     ".*$"),
-                re.compile("^        h:"
+                re.compile("^      h:"
                     " +width +(?P<hwidth>[0-9]+)"
                     " +start +(?P<hstart>[0-9]+)"
                     " +end +(?P<hend>[0-9]+)"
@@ -212,7 +212,7 @@ class Server(object):
                     " +skew +(?P<hskew>[0-9]+)"
                     " +clock +(?P<hclock>[0-9]+\.[0-9]+)KHz"
                     "$"),
-                re.compile("^        v:"
+                re.compile("^      v:"
                     " +height +(?P<vheight>[0-9]+)"
                     " +start +(?P<vstart>[0-9]+)"
                     " +end +(?P<vend>[0-9]+)"
@@ -258,6 +258,13 @@ class Server(object):
     class Output(object):
         """Parser and representation of an output of a Server"""
 
+        def __init__(self, headline, details):
+            self.assigned_modes = [] # filled with modes by the server parser, as it keeps track of the modes
+            self.properties = {}
+
+            self._parse_headline(headline)
+            self._parse_details(details)
+
         HEADLINE_EXPRESSION = re.compile(
                 "^(?P<name>.*) (?P<connection>connected|disconnected|unknown connection) "
                 "((?P<current_geometry>[0-9-+x]+) \(0x(?P<current_mode>[0-9a-fA-F]+)\) (?P<current_rotation>normal|left|inverted|right) ((?P<current_reflection>none|X axis|Y axis|X and Y axis) )?)?"
@@ -268,7 +275,7 @@ class Server(object):
                 "( (?P<physical_x>[0-9]+)mm x (?P<physical_y>[0-9]+)mm)?"
                 "$")
 
-        def __init__(self, headline, details):
+        def _parse_headline(self, headline):
             headline_parsed = self.HEADLINE_EXPRESSION.match(headline)
             if headline_parsed is None:
                 raise XRandRParseError("Unmatched headline: %r."%headline)
@@ -310,11 +317,112 @@ class Server(object):
             else:
                 self.physical_x = self.physical_y = None
 
-            self.assigned_modes = [] # filled with modes by the server parser, as it keeps track of the modes
+        def _parse_details(self, details):
+            while details:
+                current_detail = [details.pop(0)]
+                while details and details[0].startswith((' ', '\t')):
+                    current_detail.append(details.pop(0))
+                self._parse_detail(current_detail)
+
+        def _parse_detail(self, detail):
+            if ':' not in detail[0]:
+                raise XRandRParseError("Detail doesn't contain a recognizable label: %r."%detail[0])
+            label = detail[0][:detail[0].index(':')]
+
+            detail[0] = detail[0][len(label)+1:]
+
+            if label.lower() in self.simple_details:
+                mechanism = self.simple_details[label.lower()]
+                try:
+                    data, = detail
+                    data = data.strip()
+                    if isinstance(mechanism, tuple) and not mechanism[0](data):
+                        raise ValueError()
+
+                    setattr(self, label, mechanism[1](data) if isinstance(mechanism, tuple) else mechanism(data))
+                except ValueError:
+                    raise XRandRParseError("Can not evaluate detail %s."%label)
+
+            elif label == 'Transform':
+                pass # FIXME
+            elif label == 'Panning':
+                pass # FIXME
+            elif label == 'Tracking':
+                pass # FIXME
+            elif label == 'Border':
+                pass # FIXME
+
+            else:
+                self._parse_property_detail(label, detail)
+
+        INTEGER_DETAIL_EXPRESSION = re.compile('^ +(?P<decimal>-?[0-9]+) +\(0x(?P<hex>[0-9a-fA-F]+)\)'
+                '(\trange: +\((?P<min>-?[0-9]+),(?P<max>-?[0-9]+)\))?$')
+
+        def _parse_property_detail(self, label, detail):
+            print "trying to parse detail", label, repr(detail)
+
+            if detail[0] == '':
+                data = "".join([x.strip() for x in detail[1:]]).decode('hex')
+                changable = None
+            # counting \t against multi-value type=XA_ATOM format=32 data, not
+            # implemented for lack of examples and ways of setting it (?)
+            elif detail[0].startswith('\t') and detail[0].count('\t') == 1:
+                data = detail[0][detail[0].index('\t'):].strip()
+                changable = None
+
+                if len(detail) > 1:
+                    supported_string = '\tsupported:'
+                    if detail[1].startswith(supported_string):
+                        detail[1] = detail[1][len(supported_string):]
+                        detail[2:] = [x.lstrip('\t') for x in detail[2:]]
+
+                        alldetail = "".join(detail[1:])
+
+                        if any(len(x) % 13 != 0 for x in detail[1:]) or alldetail[::13].strip(" ") != "":
+                            warnings.warn("Can not read supported values for detail %r"%label)
+
+                        else:
+                            changable = [alldetail[i*13:(i+1)*13].strip() for i in range(len(alldetail)//13)]
+                    else:
+                        warnings.warn("Unhandled data in detail %r"%label)
+
+            elif len(detail) == 1 and self.INTEGER_DETAIL_EXPRESSION.match(detail[0]) is not None:
+                matched = self.INTEGER_DETAIL_EXPRESSION.match(detail[0]).groupdict()
+
+                data = int(matched['decimal'])
+                # ignoring hex value; it'd just be a hassle to make python give
+                # me a machine-dependent version of the negative integer, and
+                # really, why bother, what could possibly be wrong?
+                if matched['min'] is not None and matched['max'] is not None:
+                    changable = xrange(int(matched['min']), int(matched['max'])+1)
+                else:
+                    changable = None
+
+            else:
+                warnings.warn("Can not interpred detail %r"%label)
+                return
+
+            self.properties[label] = (data, changable)
 
 
-
-
+        # simple patterns for _parse_detail
+        #
+        # this is matched against lowercased identifiers by _parse_detail for
+        # bulk details that don't require more clever thinking. if the first
+        # lambda doesn't return true or either of them throws a ValueError, an
+        # XRandRParseError is raised. the second expression's return value is
+        # assigned to the output object under the key's name. if just a single
+        # lambda, it acts like the second one.
+        simple_details = {
+                'identifier': (lambda data: data[:2] == '0x', lambda data: int(data[2:], 16)),
+                'timestamp': int,
+                'subpixel': SubpixelOrder,
+                'gamma': (lambda data: data.count(':') == 2, lambda data: [float(x) for x in data.split(':')]),
+                'brightness': float,
+                'clones': str, # FIXME, which values does that take?
+                'crtc': int,
+                'crtcs': lambda data: [int(x) for x in data.split()],
+                }
 
 class OldStuff(object):
     # old stuff that is lingering in the xrandr backend rewrite
