@@ -28,24 +28,35 @@ class BaseTransitionOutput(object):
         self._initialize_empty()
 
     def _initialize_empty(self):
-        pass
+        """Analogous to ``BaseTransition._initialize_empty``"""
 
     def serialize(self):
+        """Analogous to ``BaseTransition.serialize``"""
         return []
 
     def validate(self):
-        pass
+        """Analogous to ``BaseTransition.validate``"""
 
     def unserialize(self, args):
+        """Analogous to ``BaseTransition.unserialize``"""
+
         if vars(args):
             raise FileSyntaxError("Unserialized arguments remain: %r"%args)
 class BaseTransition(object):
+    """Transition instructions for one X server's state to a new one; basically
+    an internal representation of an ``xrandr`` invocation. See
+    ``README.development`` for details.
+
+    Final ``Transition`` objects are assembled by diamond heritage, make sure
+    to use super properly."""
     def __init__(self, server):
         self.server = server
 
         self._initialize_empty()
 
     def _initialize_empty(self):
+        """Fill self's properties for a no-op transition."""
+
         bases = []
         for transition_class in type(self).mro():
             if not hasattr(transition_class, "Output"):
@@ -59,10 +70,23 @@ class BaseTransition(object):
         self.outputs = dict((name, my_output_class(name, self)) for name in self.server.outputs)
 
     def validate(self):
+        """Check if a transition is currently valid (can be applied to the
+        server it is bound to). This usually won't check for *anything* that
+        could go wrong (eg wrong types assigned to properties, so serialization
+        would fail), but checks for everything a developer using Transitions
+        can not be expected to check in advance (e.g. if a particular rotation
+        is possible with that output at all, if the server's virtual is
+        respected, etc.).
+
+        Raises auxiliary.InadequateConfiguration exceptions on invalid
+        configurations."""
         for o in self.outputs.values():
             o.validate()
 
     def serialize(self):
+        """Convert a Transition to arguments to an ``xrandr`` call. When
+        implementing, take care to create a joint list of your own arguments
+        and what super() returned."""
         self.validate()
 
         ret = []
@@ -77,7 +101,10 @@ class BaseTransition(object):
         screenlayout.xrandr.commandline_parser argparser into a Transition.
         This raises an exception if any arguments remain unparsed. Thus, mixin
         objects have to consume and remove their arguments from the args object
-        and finally call super."""
+        and finally call super.
+
+        Raises an ``auxiliary.FileSyntaxError`` when the command line can not
+        be read."""
 
         del args.output # technical remnant
         if 'output_grouped' in args:

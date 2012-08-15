@@ -16,6 +16,9 @@
 
 from . import base
 
+# FIXME: this needs validation over the complete size parameters, not sure how
+# this plays together with scaling etc
+
 class TransitionOutputForPosition(base.BaseTransitionOutput):
     def _initialize_empty(self):
         super(TransitionOutputForPosition, self)._initialize_empty()

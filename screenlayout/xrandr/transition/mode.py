@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from . import base
+from ...auxiliary import InadequateConfiguration
 
 class TransitionOutputForMode(base.BaseTransitionOutput):
     def _initialize_empty(self):
@@ -29,13 +30,13 @@ class TransitionOutputForMode(base.BaseTransitionOutput):
         super(TransitionOutputForMode, self).validate()
 
         if self.precise_mode is not None and (self.rate is not None or self.named_mode is not None):
-            raise ValueError("Named modes or refresh rates can not be used together with precise mode settings.")
+            raise InadequateConfiguration("Named modes or refresh rates can not be used together with precise mode settings.")
 
         if self.auto is not None and any(x is not None for x in (self.precise_mode, self.named_mode, self.rate)):
-            raise ValueError("Switching an output to auto is mutually exclusive with setting a mode.")
+            raise InadequateConfiguration("Switching an output to auto is mutually exclusive with setting a mode.")
 
         if self.off is not None and any(x is not None for x in (self.precise_mode, self.named_mode, self.rate, self.auto)):
-            raise ValueError("Switching an output off is mutually exclusive with setting a mode.")
+            raise InadequateConfiguration("Switching an output off is mutually exclusive with setting a mode.")
 
     def serialize(self):
         args = super(TransitionOutputForMode, self).serialize()
