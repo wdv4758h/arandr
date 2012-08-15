@@ -18,6 +18,8 @@
 
 import re
 import warnings
+import shlex
+import weakref
 
 from collections import namedtuple
 
@@ -48,6 +50,16 @@ class Mode(namedtuple("BaseMode", [
     def __repr__(self):
         return '<%s %s>'%(type(self).__name__, tuple.__repr__(self))
 
+class Transformation(namedtuple('_Transformation', tuple('abcdefghi'))):
+    """9-tuple describing a transformation matrix"""
+
+    @classmethod
+    def from_comma_separated(cls, string):
+        return cls(*map(float, string.split(",")))
+
+    def __repr__(self):
+        return "<%s %s>"%(type(self).__name__, ",".join(map(str, self)))
+
 class Server(object):
     def __init__(self, context=local_context, force_version=False):
         """Create proxy object and check for xrandr at the given
@@ -63,13 +75,10 @@ class Server(object):
 
         self.load(self._output('--query', '--verbose'))
 
-        def __repr__(self):
-            return "<Version server %r, program %r>"%(self.server_version, self.program_version)
-
     #################### calling xrandr ####################
 
     def _output(self, *args):
-        # FIXME: the exception thrown should be beautiful enough to be presentable
+        # FIXME: the exception thrown should already be beautiful enough to be presentable
         try:
             return executions.ManagedExecution(("xrandr",) + args, context=self.context).read()
         except executions.CalledProcessError as e:
@@ -79,6 +88,12 @@ class Server(object):
         out, err, code = executions.ManagedExecution(("xrandr", "--help"), context=self.context).read_with_error()
 
         return out + err
+
+    def apply(self, transformation):
+        """Execute the transformation on the connected server. The server
+        object is probably not recent after this and should be recreated."""
+
+        self._output(*transformation.serialize())
 
     #################### loading ####################
 
@@ -141,7 +156,7 @@ class Server(object):
             raise XRandRParseError("Unknown mode line format (not a multiple of 3)")
 
         for lines in zip(data[0::3], data[1::3], data[2::3]):
-            mode = self.ServerAssignedMode.parse_xrandr(lines)
+            mode = self.ServerMode.parse_xrandr(lines)
 
             if mode.id in self.modes:
                 if mode != self.modes[mode.id]:
@@ -195,9 +210,12 @@ class Server(object):
                 else:
                     self.program_version = '< 1.2'
 
+            def __repr__(self):
+                return "<Version server %r, program %r>"%(self.server_version, self.program_version)
+
     Virtual = namedtuple("Virtual", ['min', 'current', 'max'])
 
-    class ServerAssignedMode(Mode):
+    class ServerMode(Mode):
         XRANDR_EXPRESSIONS = [
                 re.compile("^(?P<name>.+) +"
                     "\(0x(?P<mode_id>[0-9a-fA-F]+)\) +"
@@ -359,8 +377,6 @@ class Server(object):
                 '(\trange: +\((?P<min>-?[0-9]+),(?P<max>-?[0-9]+)\))?$')
 
         def _parse_property_detail(self, label, detail):
-            print "trying to parse detail", label, repr(detail)
-
             if detail[0] == '':
                 data = "".join([x.strip() for x in detail[1:]]).decode('hex')
                 changable = None
@@ -424,32 +440,238 @@ class Server(object):
                 'crtcs': lambda data: [int(x) for x in data.split()],
                 }
 
+
+class BaseTransitionOutput(object):
+    transition = property(lambda self: self._transition())
+    server_output = property(lambda self: self.transition.server.outputs[self.name])
+    available_modes = property(lambda self: self.server_output.assigned_modes) # when implementing new modes, and a transition includes new modes, include them here
+
+    def __init__(self, name, transition):
+        self.name = name
+        self._transition = weakref.ref(transition)
+
+        self._initialize_empty()
+
+    def _initialize_empty(self):
+        pass
+
+    def serialize(self):
+        return []
+
+    def validate(self):
+        pass
+
+    def unserialize(self, args):
+        if vars(args):
+            raise FileSyntaxError("Unserialized arguments remain: %r"%args)
+class BaseTransition(object):
+    def __init__(self, server):
+        self.server = server
+
+        self._initialize_empty()
+
+    def _initialize_empty(self):
+        bases = []
+        for transition_class in type(self).mro():
+            if not hasattr(transition_class, "Output"):
+                continue
+            output_class = transition_class.Output
+            if output_class in bases:
+                continue
+            bases.append(output_class)
+        my_output_class = type("%sOutput"%type(self).__name__, tuple(bases), {})
+
+        self.outputs = dict((name, my_output_class(name, self)) for name in self.server.outputs)
+
+    def validate(self):
+        for o in self.outputs.values():
+            o.validate()
+
+    def serialize(self):
+        self.validate()
+
+        ret = []
+        for output_name, output in self.outputs.items():
+            serialized_from_output = output.serialize()
+            if serialized_from_output:
+                ret.extend(['--output', output_name] + serialized_from_output)
+        return ret
+
+    def unserialize(self, args):
+        """Load the args object created by a
+        screenlayout.xrandr.commandline_parser argparser into a Transition.
+        This raises an exception if any arguments remain unparsed. Thus, mixin
+        objects have to consume and remove their arguments from the args object
+        and finally call super."""
+
+        del args.output # technical remnant
+        if 'output_grouped' in args:
+            for output_name, output_args in args.output_grouped.items():
+                if output_name not in self.outputs:
+                    raise FileSyntaxError("XRandR command mentions unknown output %r"%output_name)
+                self.outputs[output_name].unserialize(output_args)
+            del args.output_grouped # them being empty gets checked by the individual output objects
+
+        if vars(args):
+            raise FileSyntaxError("Unhandled arguments remain: %r"%args)
+
+    def __repr__(self):
+        return '<%s bound to %s: %s>'%(type(self).__name__, self.server, " ".join(self.serialize() or ["no changes"]))
+
+    Output = BaseTransitionOutput
+
+
+class TransitionOutputForPrimary(BaseTransitionOutput):
+    def serialize(self):
+        if self.transition.primary is self:
+            return ['--primary'] + super(TransitionOutputForPrimary, self).serialize()
+        else:
+            return super(TransitionOutputForPrimary, self).serialize()
+
+    def unserialize(self, args):
+        if 'primary' in args:
+            if args.primary:
+                self.transition.primary = self
+            del args.primary
+
+        super(TransitionOutputForPrimary, self).unserialize(args)
+class TransitionForPrimary(BaseTransition):
+    def _initialize_empty(self):
+        super(TransitionForPrimary, self)._initialize_empty()
+        self.primary = None
+
+    NO_PRIMARY = object()
+
+    def serialize(self):
+        if self.primary is self.NO_PRIMARY:
+            return ['--noprimary'] + super(TransitionForPrimary, self).serialize()
+        else:
+            # if a primary output is explicitly set, it will be handled by the output serialization
+            return super(TransitionForPrimary, self).serialize()
+
+    def unserialize(self, args):
+        if args.noprimary:
+            self.primary = self.NO_PRIMARY
+        del args.noprimary
+
+        super(TransitionForPrimary, self).unserialize(args)
+
+    Output = TransitionOutputForPrimary
+
+
+class TransitionOutputForPosition(BaseTransitionOutput):
+    def _initialize_empty(self):
+        super(TransitionOutputForPosition, self)._initialize_empty()
+        self.position = None
+
+    def serialize(self):
+        if self.position is not None:
+            return ['--pos', str(self.position)] + super(TransitionOutputForPosition, self).serialize()
+        else:
+            return super(TransitionOutputForPosition, self).serialize()
+
+    def unserialize(self, args):
+        if 'pos' in args:
+            self.position = args.pos
+            del args.pos
+        super(TransitionOutputForPosition, self).unserialize(args)
+class TransitionForPosition(BaseTransition):
+    Output = TransitionOutputForPosition
+
+
+
+class TransitionOutputForMode(BaseTransitionOutput):
+    def _initialize_empty(self):
+        super(TransitionOutputForMode, self)._initialize_empty()
+        self.named_mode = None
+        self.precise_mode = None
+        self.rate = None
+        self.auto = None
+        self.off = None
+
+    def validate(self):
+        super(TransitionOutputForMode, self).validate()
+
+        if self.precise_mode is not None and (self.rate is not None or self.named_mode is not None):
+            raise ValueError("Named modes or refresh rates can not be used together with precise mode settings.")
+
+        if self.auto is not None and any(x is not None for x in (self.precise_mode, self.named_mode, self.rate)):
+            raise ValueError("Switching an output to auto is mutually exclusive with setting a mode.")
+
+        if self.off is not None and any(x is not None for x in (self.precise_mode, self.named_mode, self.rate, self.auto)):
+            raise ValueError("Switching an output off is mutually exclusive with setting a mode.")
+
+    def serialize(self):
+        args = super(TransitionOutputForMode, self).serialize()
+
+        if self.precise_mode is not None:
+            args += ['--mode', "%#x"%self.precise_mode]
+
+        if self.named_mode is not None:
+            args += ['--mode', self.named_mode]
+
+        if self.rate is not None:
+            args += ['--rate', str(self.rate)]
+
+        if self.off:
+            args += ['--off']
+
+        if self.auto:
+            args += ['--auto']
+
+        return args
+
+    def unserialize(self, args):
+        if 'mode' in args:
+            if args.mode.startswith('0x') and \
+                    all(x in '0123456789abcdefABCDEF' for x in args.mode[2:]) and \
+                    int(args.mode[2:], 16) in [x.id for x in self.available_modes]:
+                self.precise_mode = int(args.mode[2:], 16)
+            elif args.mode in [x.name for x in self.available_modes]:
+                self.named_mode = args.mode
+            else:
+                raise FileSyntaxError("Unknown mode: %r"%args.mode)
+
+            del args.mode
+
+        if 'rate' in args:
+            self.rate = args.rate
+            del args.rate
+
+        if 'auto' in args:
+            self.auto = True
+            del args.auto
+
+        if 'off' in args:
+            self.off = True
+            del args.off
+
+        super(TransitionOutputForMode, self).unserialize(args)
+class TransitionForMode(BaseTransition):
+    Output = TransitionOutputForMode
+
+
+Transition = type("Transition", (
+    TransitionForPrimary,
+    TransitionForPosition,
+    TransitionForMode,
+    ), {})
+
+
+
+
+
+
+
+
+
+
 class OldStuff(object):
     # old stuff that is lingering in the xrandr backend rewrite
 
 
-    def load_from_string(self, data):
-        data = data.replace("%","%%")
-        lines = data.split("\n")
-        if lines[-1] == '': lines.pop() # don't create empty last line
-
-        if lines[0] != SHELLSHEBANG:
-            raise FileLoadError('Not a shell script.')
-
-        xrandrlines = [i for i,l in enumerate(lines) if l.strip().startswith('xrandr ')]
-        if len(xrandrlines)==0:
-            raise FileLoadError('No recognized xrandr command in this shell script.')
-        if len(xrandrlines)>1:
-            raise FileLoadError('More than one xrandr line in this shell script.')
-        self._load_from_commandlineargs(lines[xrandrlines[0]].strip())
-        lines[xrandrlines[0]] = '%(xrandr)s'
-
-        return lines
-
-    def _load_from_commandlineargs(self, commandline):
-        self.load_from_x()
-
-        args = BetterList(commandline.split(" "))
+    def load_from_commandlineargs(self, commandline):
+        args = BetterList(shlex.split(commandline))
         if args.pop(0) != 'xrandr':
             raise FileSyntaxError()
         options = dict((a[0], a[1:]) for a in args.split('--output') if a) # first part is empty, exclude empty parts
@@ -474,6 +696,24 @@ class OldStuff(object):
                     else:
                         raise FileSyntaxError()
                 o.active = True
+
+    def load_from_string(self, data):
+        data = data.replace("%","%%")
+        lines = data.split("\n")
+        if lines[-1] == '': lines.pop() # don't create empty last line
+
+        if lines[0] != SHELLSHEBANG:
+            raise FileLoadError('Not a shell script.')
+
+        xrandrlines = [i for i,l in enumerate(lines) if l.strip().startswith('xrandr ')]
+        if len(xrandrlines)==0:
+            raise FileLoadError('No recognized xrandr command in this shell script.')
+        if len(xrandrlines)>1:
+            raise FileLoadError('More than one xrandr line in this shell script.')
+        self._load_from_commandlineargs(lines[xrandrlines[0]].strip())
+        lines[xrandrlines[0]] = '%(xrandr)s'
+
+        return lines
 
 
     #################### saving ####################
@@ -574,7 +814,3 @@ class OldStuff(object):
                     else:
                         self.mode = geometry.size
             size = property(lambda self: Size(reversed(self.mode)) if self.rotation.is_odd else self.mode)
-
-class Transition(object):
-    DEFAULTTEMPLATE = [SHELLSHEBANG, '%(xrandr)s']
-

@@ -63,9 +63,9 @@ As a consequence, XRandR stuff is handled in two different kinds of objects:
   ``Transition`` is always *bound* to a ``Server``, as its validity can only be
   established when it is known on which server it is to be executed.
 
-  A transition can be modified in place (e.g. "enable output VGA"), and will
-  verify on its own whether it is still valid after that modification on the
-  server it is bound to, and raise an exception if not.
+  A transition can be modified in place (e.g. "enable output VGA"), and can
+  verify whether it is still valid after that modification on the server it is
+  bound to, and raise an exception if not when validated.
 
   Transition objects can be instructed to load values from the server. With
   ARandR, this happens by default (eg for output positions and modes); thus,
@@ -75,6 +75,20 @@ As a consequence, XRandR stuff is handled in two different kinds of objects:
 
 The screenlayout widget, i.e. the visual component of ARandR, always shows a
 ``Transition``.
+
+Both ``Server`` and ``Transition`` objects have much of their logic inside
+``.Output`` sub-objects, collected in their ``.outputs`` dictionaries.
+
+``Transition`` and ``Transition.Output`` are not big monolithic classes, but
+split for features (e.g. named ``TransitionForPosition`` with its
+``TransitionOutputForPosition == TransitionForPosition.Output``). Thus, new
+features can be handled in a single compact object, and initialization,
+validation, serialization etc. belonging to one feature stay in a single place.
+The base object ``BaseTransition`` is mainly responsible for linking the
+``BaseTransitionOutput`` objects into the process. For example, when a
+transition is ``.serialize()``d into an ``xrandr`` invocation, it makes sure
+that all outputs that do have modifications get the outputs of their own
+``.serialize()`` calls glued together with ``--output`` options.
 
 .. _ARandR: http://christian.amsuess.com/tools/arandr/
  .. _`kept at gitorious`: http://gitorious.org/arandr/arandr

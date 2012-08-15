@@ -17,6 +17,7 @@
 """Exceptions and generic classes"""
 
 from math import pi
+from collections import namedtuple
 
 class FileLoadError(Exception): pass
 class FileSyntaxError(FileLoadError):
@@ -54,7 +55,8 @@ class Size(tuple):
         if isinstance(arg, basestring):
             arg = [int(x) for x in arg.split("x")]
         arg = tuple(arg)
-        assert len(arg)==2
+        if len(arg) != 2:
+            raise ValueError("Sizes use XxY format")
         return super(Size, cls).__new__(cls, arg)
 
     width = property(lambda self:self[0])
@@ -68,7 +70,8 @@ class Position(tuple):
         if isinstance(arg, basestring):
             arg = [int(x) for x in arg.split("x")]
         arg = tuple(arg)
-        assert len(arg)==2
+        if len(arg) != 2:
+            raise ValueError("Positions use XxY format")
         return super(Position, cls).__new__(cls, arg)
 
     left = property(lambda self:self[0])

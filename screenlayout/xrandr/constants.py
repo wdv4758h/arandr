@@ -12,11 +12,17 @@ class Reflection(Flag):
     values = ['xaxis', 'yaxis', 'xyaxis', 'noaxis']
 
     aliases = {
+            # used by parser
             'X axis': 'xaxis',
             'Y axis': 'yaxis',
             'X and Y axis': 'xyaxis',
             'none': 'noaxis',
             None: 'noaxis',
+            # used on command line
+            'normal': 'noaxis',
+            'x': 'xaxis',
+            'y':'yaxis',
+            'xy': 'xyaxis',
             }
 
     # slicing own label because there's an 'x' in axis
