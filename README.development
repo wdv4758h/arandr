@@ -55,7 +55,7 @@ As a consequence, XRandR stuff is handled in two different kinds of objects:
 * ``screenlayout.xrandr.Server``: A server's state, basically an internal
   representation of ``xrandr --verbose``. While not technically an immutable
   object, it gets created once and is not modified after. After a modification
-  is applied, a new ``Server`` object is created as a part of the reloading
+  is applied, a new ``Server`` object gets created as a part of the reloading
   process.
 
 * ``screenlayout.xrandr.Transition``: A recipe for changing a server's state,
@@ -65,13 +65,22 @@ As a consequence, XRandR stuff is handled in two different kinds of objects:
 
   A transition can be modified in place (e.g. "enable output VGA"), and can
   verify whether it is still valid after that modification on the server it is
-  bound to, and raise an exception if not when validated.
+  bound to, and raise an exception if not when ``validate()``d.
 
   Transition objects can be instructed to load values from the server. With
   ARandR, this happens by default (eg for output positions and modes); thus,
   users can open up ARandR when the outputs are already configured as they
   should be, save the configuration, and when the saved configuration is
   loaded, the old configuration will be restored.
+
+* Transitions have a ``predicted_server`` property, which mimicks the bound
+  server and incorporates all the transition's changes. It is used by the
+  widget renderer, and could also be used to validate whether the server state
+  after the transition is as expected.
+
+  The predicted server is updated by a Transition's ``predict_server()``
+  method, an can, under some circumstances, even describe invalid states (eg.
+  during drag-and-drop).
 
 The screenlayout widget, i.e. the visual component of ARandR, always shows a
 ``Transition``.

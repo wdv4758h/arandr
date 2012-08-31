@@ -28,6 +28,10 @@ class Mode(namedtuple("BaseMode", [
     vsync = property(lambda self: self.hsync * 1000 / self.vtotal)
     refreshrate = vsync # just an alias, so it's available both on the technical term and the common one
 
+    width = property(lambda self: self.hdisp) # shortcut
+    height = property(lambda self: self.vdisp) # shortcut
+    size = property(lambda self: Size(self.width, self.height))
+
     def __repr__(self):
         return '<%s %s>'%(type(self).__name__, tuple.__repr__(self))
 

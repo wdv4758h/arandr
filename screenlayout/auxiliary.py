@@ -79,25 +79,20 @@ class Position(tuple):
     def __str__(self):
         return "%dx%d"%self
 
-class Geometry(tuple):
+class Geometry(namedtuple("_Geometry", ['left', 'top', 'width', 'height'])):
     """4-tuple of width, height, left and top that can be created from an XParseGeometry style string"""
     # FIXME: use XParseGeometry instead of an own incomplete implementation
-    def __new__(cls, width, height=None, left=None, top=None):
-        if isinstance(width, basestring):
-            width,rest = width.split("x")
+    def __new__(cls, left, top=None, width=None, height=None):
+        if isinstance(left, basestring):
+            width,rest = left.split("x")
             height,left,top = rest.split("+")
-        return super(Geometry, cls).__new__(cls, (int(width), int(height), int(left), int(top)))
+        return super(Geometry, cls).__new__(cls, left=int(left), top=int(top), width=int(width), height=int(height))
 
     def __str__(self):
-        return "%dx%d+%d+%d"%self
+        return "%dx%d+%d+%d"%(self[2:4]+self[0:2])
 
-    width = property(lambda self:self[0])
-    height = property(lambda self:self[1])
-    left = property(lambda self:self[2])
-    top = property(lambda self:self[3])
-
-    position = property(lambda self:Position(self[2:4]))
-    size = property(lambda self:Size(self[0:2]))
+    position = property(lambda self:Position(self[0:2]))
+    size = property(lambda self:Size(self[2:4]))
 
 class FlagClass(type):
     def __init__(self, name, bases, dict):

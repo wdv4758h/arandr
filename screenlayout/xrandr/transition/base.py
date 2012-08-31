@@ -15,10 +15,21 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import weakref
+import copy
+
+class PredictedServer(object):
+    def __init__(self, original_server):
+        # might need some automation later in the process
+        self.outputs = copy.deepcopy(original_server.outputs)
+        self.version = copy.deepcopy(original_server.version)
+        self.virtual = copy.deepcopy(original_server.virtual)
+        self.modes = copy.deepcopy(original_server.modes)
 
 class BaseTransitionOutput(object):
     transition = property(lambda self: self._transition())
     server_output = property(lambda self: self.transition.server.outputs[self.name])
+    predicted_server_output = property(lambda self: self.transition.predicted_server.outputs[self.name])
+
     available_modes = property(lambda self: self.server_output.assigned_modes) # when implementing new modes, and a transition includes new modes, include them here
 
     def __init__(self, name, transition):
@@ -42,6 +53,10 @@ class BaseTransitionOutput(object):
 
         if vars(args):
             raise FileSyntaxError("Unserialized arguments remain: %r"%args)
+
+    def predict_server(self):
+        """Update .predicted_server_output as BaseTransition.predict_server
+        does"""
 class BaseTransition(object):
     """Transition instructions for one X server's state to a new one; basically
     an internal representation of an ``xrandr`` invocation. See
@@ -51,6 +66,8 @@ class BaseTransition(object):
     to use super properly."""
     def __init__(self, server):
         self.server = server
+
+        self.predicted_server = PredictedServer(server)
 
         self._initialize_empty()
 
@@ -116,6 +133,13 @@ class BaseTransition(object):
 
         if vars(args):
             raise FileSyntaxError("Unhandled arguments remain: %r"%args)
+
+    def predict_server(self):
+        """Update .predicted_server to reflect what after applying the
+        transition, the server is supposed to look like."""
+
+        for output in self.outputs.values():
+            output.predict_server()
 
     def __repr__(self):
         return '<%s bound to %s: %s>'%(type(self).__name__, self.server, " ".join(self.serialize() or ["no changes"]))

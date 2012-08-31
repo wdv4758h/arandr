@@ -20,8 +20,8 @@ import stat
 import pango
 import pangocairo
 import gobject, gtk
-from .auxiliary import Position, Size, NORMAL, ROTATIONS, InadequateConfiguration
-from .xrandr import XRandR
+from .xrandr.server import Server
+from .xrandr.transition import Transition
 from .snap import Snap
 import executions
 
@@ -37,6 +37,9 @@ class ARandRWidget(gtk.DrawingArea):
     def __init__(self, factor=8, context=executions.context.local, force_version=False):
         super(ARandRWidget, self).__init__()
 
+        self.force_version = force_version
+        self.context = context
+
         self._factor = factor
 
         self.set_size_request(1024//self.factor, 1024//self.factor) # best guess for now
@@ -46,7 +49,7 @@ class ARandRWidget(gtk.DrawingArea):
 
         self.setup_draganddrop()
 
-        self._xrandr = XRandR(context=context, force_version=force_version)
+        self._transition = None
 
     #################### widget features ####################
 
@@ -58,7 +61,7 @@ class ARandRWidget(gtk.DrawingArea):
     factor = property(lambda self: self._factor, _set_factor)
 
     def abort_if_unsafe(self):
-        if not len([x for x in self._xrandr.configuration.outputs.values() if x.active]):
+        if not len([x for x in self._transition.outputs.values() if not x.off]):
             d = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_YES_NO, _("Your configuration does not include an active monitor. Do you want to apply the configuration?"))
             result = d.run()
             d.destroy()
@@ -74,29 +77,32 @@ class ARandRWidget(gtk.DrawingArea):
             d.destroy()
 
     def _update_size_request(self):
-        max_gapless = sum(max(o.size) if o.active else 0 for o in self._xrandr.configuration.outputs.values()) # this ignores that some outputs might not support rotation, but will always err at the side of caution.
+        max_gapless = sum(max(max(m.width, m.height) for m in o.assigned_modes) if o.assigned_modes else 0 for o in self._transition.server.outputs.values()) # this ignores that some outputs might not support rotation, but will always err at the side of caution.
         # have some buffer
         usable_size = int(max_gapless * 1.1)
         # don't request too large a window, but make sure very possible compination fits
-        xdim = min(self._xrandr.state.virtual.max[0], usable_size)
-        ydim = min(self._xrandr.state.virtual.max[1], usable_size)
+        xdim = min(self._transition.server.virtual.max[0], usable_size)
+        ydim = min(self._transition.server.virtual.max[1], usable_size)
         self.set_size_request(xdim//self.factor, ydim//self.factor)
 
     #################### loading ####################
 
+    '''
     def load_from_file(self, file):
         data = open(file).read()
         template = self._xrandr.load_from_string(data)
         self._xrandr_was_reloaded()
         return template
+    '''
 
     def load_from_x(self):
-        self._xrandr.load_from_x()
+        server = Server(context=self.context, force_version=self.force_version)
+        self._transition = Transition(server)
+        # FIXME: self._transition.load_reasonable_defaults()
         self._xrandr_was_reloaded()
-        return self._xrandr.DEFAULTTEMPLATE
 
     def _xrandr_was_reloaded(self):
-        self.sequence = sorted(self._xrandr.outputs)
+        self.sequence = sorted(self._transition.outputs.values())
         self._lastclick = (-1,-1)
 
         self._update_size_request()
@@ -105,17 +111,24 @@ class ARandRWidget(gtk.DrawingArea):
         self.emit('changed')
 
     def save_to_x(self):
-        self._xrandr.save_to_x()
+        self._transition.server.apply(self._transition)
+        # FIXME: it would be cleaner to keep the transition and re-bind it to a
+        # new server. thus, changes that don't round-trip cleanly are
+        # preserved. possibly don't rebind transition, but load from
+        # serialization again
         self.load_from_x()
 
+    '''
     def save_to_file(self, file, template=None, additional=None):
         data = self._xrandr.save_to_shellscript_string(template, additional)
         open(file, 'w').write(data)
         os.chmod(file, stat.S_IRWXU)
         self.load_from_file(file)
+    '''
 
     #################### doing changes ####################
 
+    '''
     def _set_something(self, which, on, data):
         old = getattr(self._xrandr.configuration.outputs[on], which)
         setattr(self._xrandr.configuration.outputs[on], which, data)
@@ -127,6 +140,7 @@ class ARandRWidget(gtk.DrawingArea):
 
         self._force_repaint()
         self.emit('changed')
+    '''
 
     def set_position(self, on, pos):
         self._set_something('position', on, pos)
@@ -179,25 +193,27 @@ class ARandRWidget(gtk.DrawingArea):
         cr.scale(1/self.factor, 1/self.factor)
         cr.set_line_width(self.factor*1.5)
 
-        self._draw(self._xrandr, cr)
+        self._draw(self._transition, cr)
 
-    def _draw(self, xrandr, cr):
-        cfg = xrandr.configuration
-        state = xrandr.state
-
+    def _draw(self, transition, cr):
         cr.set_source_rgb(0.25,0.25,0.25)
-        cr.rectangle(0,0,*state.virtual.max)
+        cr.rectangle(0,0,*transition.server.virtual.max)
         cr.fill()
 
         cr.set_source_rgb(0.5,0.5,0.5)
-        cr.rectangle(0,0,*cfg.virtual)
+        cr.rectangle(0,0,*transition.server.virtual.current) # FIXME: we should get an expected virtual
         cr.fill()
 
-        for on in self.sequence:
-            o = cfg.outputs[on]
-            if not o.active: continue
+        # for most painting related stuff, it is easier to just access a
+        # predicted server than to merge transition details with server data
+        transition.predict_server()
 
-            rect = (o.tentative_position if hasattr(o, 'tentative_position') else o.position) + o.size
+        for output in self.sequence:
+            predicted = output.predicted_server_output
+            if not predicted.active:
+                continue
+
+            rect = predicted.geometry # FIXME: a bit of a long shot; i doubt .geometry() will hold for long
             center = rect[0]+rect[2]/2, rect[1]+rect[3]/2
 
             # paint rectangle
@@ -208,10 +224,10 @@ class ARandRWidget(gtk.DrawingArea):
             cr.rectangle(*rect)
             cr.stroke()
 
-            # set up for text
+            # set up for text -- FIXME: there gotta be a better way...
             cr.save()
-            textwidth = rect[3 if o.rotation.is_odd else 2]
-            widthperchar = textwidth/len(on)
+            textwidth = rect[3 if predicted.rotation.is_odd else 2]
+            widthperchar = textwidth/len(predicted.name)
             textheight = int(widthperchar * 0.8) # i think this looks nice and won't overflow even for wide fonts
 
             newdescr = pango.FontDescription("sans")
@@ -220,13 +236,13 @@ class ARandRWidget(gtk.DrawingArea):
             # create text
             layout = cr.create_layout()
             layout.set_font_description(newdescr)
-            layout.set_text(on)
+            layout.set_text(predicted.name)
 
             # position text
             layoutsize = layout.get_pixel_size()
             layoutoffset = -layoutsize[0]/2, -layoutsize[1]/2
             cr.move_to(*center)
-            cr.rotate(o.rotation.angle)
+            cr.rotate(predicted.rotation.angle)
             cr.rel_move_to(*layoutoffset)
 
             # pain text
@@ -235,46 +251,46 @@ class ARandRWidget(gtk.DrawingArea):
 
     def _force_repaint(self):
         # using self.allocation as rect is offset by the menu bar.
-        self.window.invalidate_rect(gtk.gdk.Rectangle(0,0,self._xrandr.state.virtual.max[0]//self.factor,self._xrandr.state.virtual.max[1]//self.factor), False)
+        self.window.invalidate_rect(gtk.gdk.Rectangle(0,0,self._transition.server.virtual.max[0]//self.factor,self._transition.server.virtual.max[1]//self.factor), False)
         # this has the side effect of not painting out of the available region on drag and drop
 
     #################### click handling ####################
 
     def click(self, widget, event):
         undermouse = self._get_point_outputs(event.x, event.y)
+        if undermouse:
+            target = self._get_point_active_output(event.x, event.y)
         if event.button == 1 and undermouse:
-            which = self._get_point_active_output(event.x, event.y)
+            old_sequence = self.sequence[:]
             if self._lastclick == (event.x, event.y): # this was the second click to that stack
                 # push the highest of the undermouse windows below the lowest
                 newpos = min(self.sequence.index(a) for a in undermouse)
-                self.sequence.remove(which)
-                self.sequence.insert(newpos,which)
+                self.sequence.remove(target)
+                self.sequence.insert(newpos,target)
                 # sequence changed
-                which = self._get_point_active_output(event.x, event.y)
+                target = self._get_point_active_output(event.x, event.y)
             # pull the clicked window to the absolute top
-            self.sequence.remove(which)
-            self.sequence.append(which)
+            self.sequence.remove(target)
+            self.sequence.append(target)
 
-            self._lastclick = (event.x, event.y)
-            self._force_repaint()
+            if old_sequence != self.sequence:
+                self._force_repaint()
         if event.button == 3:
-            if undermouse:
-                target = [a for a in self.sequence if a in undermouse][-1]
-                m = self._contextmenu(target)
-                m.popup(None, None, None, event.button, event.time)
-            else:
-                m = self.contextmenu()
-                m.popup(None, None, None, event.button, event.time)
+            m = self.contextmenu(undermouse)
+            m.show_all()
+            m.popup(None, None, None, event.button, event.time)
 
-        self._lastclick = (event.x, event.y) # deposit for drag and drop until better way found to determine exact starting coordinates
+        self._lastclick = (event.x, event.y)
 
     def _get_point_outputs(self, x, y):
         x,y = x*self.factor, y*self.factor
         outputs = set()
-        for on,o in self._xrandr.configuration.outputs.items():
-            if not o.active: continue
-            if o.position[0]-self.factor <= x <= o.position[0]+o.size[0]+self.factor and o.position[1]-self.factor <= y <= o.position[1]+o.size[1]+self.factor:
-                outputs.add(on)
+        for output in self._transition.outputs.values():
+            if not output.predicted_server_output.active:
+                continue
+            poly = output.predicted_server_output.polygon
+            if poly.point_distance(x, y) < 2*self.factor: # 2 pixels margin of error
+                outputs.add(output)
         return outputs
 
     def _get_point_active_output(self, x, y):
@@ -285,17 +301,26 @@ class ARandRWidget(gtk.DrawingArea):
 
     #################### context menu ####################
 
-    def contextmenu(self):
+    def contextmenu(self, outputs=None):
+        outputs = outputs or self._transition.outputs.values()
+
+        if len(outputs) == 1:
+            (output, ) = outputs
+            return self._contextmenu(output)
+
         m = gtk.Menu()
-        for on in self._xrandr.outputs:
-            i = gtk.MenuItem(on)
-            i.props.submenu = self._contextmenu(on)
+        for output in outputs:
+            i = gtk.MenuItem(output.name)
+            i.props.submenu = self._contextmenu(output)
             m.add(i)
-        m.show_all()
         return m
 
-    def _contextmenu(self, on):
+    def _contextmenu(self, output):
         m = gtk.Menu()
+        details = gtk.MenuItem(_("Details..."))
+        m.add(details)
+        return m
+
         oc = self._xrandr.configuration.outputs[on]
         os = self._xrandr.state.outputs[on]
 

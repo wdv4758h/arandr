@@ -84,5 +84,8 @@ class TransitionOutputForMode(base.BaseTransitionOutput):
             del args.off
 
         super(TransitionOutputForMode, self).unserialize(args)
+
+    def get_configured_mode(self):
+        pass
 class TransitionForMode(base.BaseTransition):
     Output = TransitionOutputForMode

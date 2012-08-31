@@ -74,7 +74,7 @@ class ManagedExecution(object):
         return stdout, stderr, retcode
 
     def __str__(self):
-        return "Process %r"%" ".join(self.argv)
+        return "Process %r"%(self.argv,)
 
     def __repr__(self):
         return "<ManagedExecution of %r>"%self.argv

@@ -42,3 +42,6 @@ def main():
     w.set_title('Simple ARandR Widget Demo')
     w.show_all()
     gtk.main()
+
+if __name__ == "__main__":
+    main()

@@ -22,6 +22,7 @@ from .constants import Rotation, Reflection, ModeFlag, SubpixelOrder
 from .. import executions
 from ..executions.context import local as local_context
 from ..auxiliary import Size, Geometry, XRandRParseError
+from ..polygon import ConvexPolygon
 
 from .helpers import Mode
 
@@ -54,11 +55,11 @@ class Server(object):
 
         return out + err
 
-    def apply(self, transformation):
-        """Execute the transformation on the connected server. The server
+    def apply(self, transition):
+        """Execute the transition on the connected server. The server
         object is probably not recent after this and should be recreated."""
 
-        self._output(*transformation.serialize())
+        self._output(*transition.serialize())
 
     #################### loading ####################
 
@@ -404,3 +405,17 @@ class Server(object):
                 'crtc': int,
                 'crtcs': lambda data: [int(x) for x in data.split()],
                 }
+
+        @property
+        def polygon(self):
+            """Return the output area's outlining polygon."""
+
+            # winding clock-wise, as we're in "pc coordinates" (right, down
+            # instead of right, up), so clock-wise is the new positive
+            # direction
+            return ConvexPolygon([
+                    self.geometry.position,
+                    (self.geometry.position[0] + self.geometry.size[0], self.geometry.position[1]),
+                    tuple(p+s for (p, s) in zip(self.geometry.position, self.geometry.size)),
+                    (self.geometry.position[0], self.geometry.position[0] + self.geometry.size[1]),
+                    ])
