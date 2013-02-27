@@ -37,3 +37,6 @@ class ModeFlag(Flag):
 
 class SubpixelOrder(Flag):
     values = ['unknown', 'horizontal rgb', 'horizontal bgr', 'vertical rgb', 'vertical bgr', 'no subpixels']
+
+class ConnectionStatus(Flag):
+    values = ['connected', 'disconnected', 'unknown connection']

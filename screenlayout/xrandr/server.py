@@ -18,7 +18,7 @@ import warnings
 from collections import namedtuple
 import re
 
-from .constants import Rotation, Reflection, ModeFlag, SubpixelOrder
+from .constants import Rotation, Reflection, ModeFlag, SubpixelOrder, ConnectionStatus
 from .. import executions
 from ..executions.context import local as local_context
 from ..auxiliary import Size, Geometry, XRandRParseError
@@ -266,7 +266,8 @@ class Server(object):
             headline_parsed = headline_parsed.groupdict()
 
             self.name = headline_parsed['name']
-            self.active = headline_parsed['connection'] in ('connected', 'unknown connection')
+            # the values were already checked in the regexp
+            self.connection_status = ConnectionStatus(headline_parsed['connection'])
 
             if headline_parsed['current_mode']:
                 self.active = True

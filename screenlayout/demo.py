@@ -19,14 +19,22 @@
 Run by calling the main() function."""
 
 import gtk
-from . import widget
+from .widget import TransitionWidget, TransitionOutputWidget
+
+def update_tabs(widget, tabs):
+    for output_name in widget._transition.outputs.keys():
+        tabs.insert_page(TransitionOutputWidget(widget, output_name), tab_label=gtk.Label(output_name))
 
 def main():
     w = gtk.Window()
     w.connect('destroy',gtk.main_quit)
 
-    r = widget.ARandRWidget()
+    r = TransitionWidget()
     r.load_from_x()
+
+    output_properties = gtk.Notebook()
+    r.connect('changed', update_tabs, output_properties)
+    r.emit('changed')
 
     b = gtk.Button("Reload")
     b.connect('clicked', lambda *args: r.load_from_x())
@@ -37,6 +45,7 @@ def main():
     v = gtk.VBox()
     w.add(v)
     v.add(r)
+    v.add(output_properties)
     v.add(b)
     v.add(b2)
     w.set_title('Simple ARandR Widget Demo')

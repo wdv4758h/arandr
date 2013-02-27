@@ -20,22 +20,22 @@ import stat
 import pango
 import pangocairo
 import gobject, gtk
-from .xrandr.server import Server
-from .xrandr.transition import Transition
-from .snap import Snap
-import executions
+from ..xrandr.server import Server
+from ..xrandr.transition import Transition
+from ..snap import Snap
+from .. import executions
 
 import gettext
 gettext.install('arandr')
 
-class ARandRWidget(gtk.DrawingArea):
+class TransitionWidget(gtk.DrawingArea):
     __gsignals__ = {
             'expose-event':'override', # FIXME: still needed?
             'changed':(gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
             }
 
     def __init__(self, factor=8, context=executions.context.local, force_version=False):
-        super(ARandRWidget, self).__init__()
+        super(TransitionWidget, self).__init__()
 
         self.force_version = force_version
         self.context = context
