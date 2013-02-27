@@ -1,0 +1,11 @@
+Development tools for ARandR
+============================
+
+build_xrandrs.sh
+----------------
+
+Script that can be called on the xrandr tool's git repository. It builds the
+various released versions xrandr in order to test them against ARandR. Be aware
+that this affects only the client tool; unless all the versions built are
+tested against different versions of the X server (including different
+hardware), tests done using it are not likely to be comprehensive.
