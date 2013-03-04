@@ -27,17 +27,23 @@ from .widget import TransitionWidget, TransitionOutputWidget
 
 current_tabs = [] # kept here just for sake of global access in IPython sessions
 
-def update_tabs(widget, tabs):
-    current_tabs[:] = []
-    for t in tabs.children():
-        tabs.remove(t)
+def update_tabs(widget, notebook):
+    outputs = list(widget._transition.outputs.keys())
 
-    for output_name in widget._transition.outputs.keys():
+    for t in notebook.children():
+        if t.output_name in outputs:
+            outputs.remove(t.output_name)
+            t.update()
+        else:
+            notebook.remove(t)
+            current_tabs.remove(t)
+
+    for output_name in outputs:
         tabwidget = TransitionOutputWidget(widget, output_name)
-        tabs.insert_page(tabwidget, tab_label=gtk.Label(output_name))
+        notebook.insert_page(tabwidget, tab_label=gtk.Label(output_name))
         current_tabs.append(tabwidget)
 
-    tabs.show_all()
+    notebook.show_all()
 
 def main(do_run=True):
     """Create a demo widget in a window with some peripherials, and either run
