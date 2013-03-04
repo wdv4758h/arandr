@@ -20,6 +20,7 @@ import stat
 import pango
 import pangocairo
 import gobject, gtk
+from ..xrandr.constants import ConnectionStatus
 from ..xrandr.server import Server
 from ..xrandr.transition import Transition
 from ..snap import Snap
@@ -314,7 +315,7 @@ class TransitionWidget(gtk.DrawingArea):
             i.props.submenu = self._contextmenu(output)
             m.add(i)
 
-            if not output.connected:
+            if output.server_output.connection_status != ConnectionStatus.connected:
                 i.props.sensitive = False
         return m
 

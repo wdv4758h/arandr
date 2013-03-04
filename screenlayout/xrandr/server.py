@@ -176,8 +176,8 @@ class Server(object):
                 else:
                     self.program_version = '< 1.2'
 
-            def __repr__(self):
-                return "<Version server %r, program %r>"%(self.server_version, self.program_version)
+        def __repr__(self):
+            return "<Version server %r, program %r>"%(self.server_version, self.program_version)
 
     Virtual = namedtuple("Virtual", ['min', 'current', 'max'])
 

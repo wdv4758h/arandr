@@ -14,18 +14,34 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Demo application, primarily used to make sure the screenlayout library can be used independent of ARandR.
+"""Demo application, primarily used to make sure the screenlayout library can
+be used independent of ARandR.
 
-Run by calling the main() function."""
+Run by calling the main() function. For interactive testing, call `main(False)`
+from IPython or anything else that runs a GTK main loop. In that case, you can
+fetch the current tab widgets from the `current_tabs` global variable.
+"""
 
 import gtk
 from .widget import TransitionWidget, TransitionOutputWidget
 
-def update_tabs(widget, tabs):
-    for output_name in widget._transition.outputs.keys():
-        tabs.insert_page(TransitionOutputWidget(widget, output_name), tab_label=gtk.Label(output_name))
+current_tabs = [] # kept here just for sake of global access in IPython sessions
 
-def main():
+def update_tabs(widget, tabs):
+    current_tabs[:] = []
+    for t in tabs.children():
+        tabs.remove(t)
+
+    for output_name in widget._transition.outputs.keys():
+        tabwidget = TransitionOutputWidget(widget, output_name)
+        tabs.insert_page(tabwidget, tab_label=gtk.Label(output_name))
+        current_tabs.append(tabwidget)
+
+    tabs.show_all()
+
+def main(do_run=True):
+    """Create a demo widget in a window with some peripherials, and either run
+    it in GTK or return the widget"""
     w = gtk.Window()
     w.connect('destroy',gtk.main_quit)
 
@@ -50,7 +66,10 @@ def main():
     v.add(b2)
     w.set_title('Simple ARandR Widget Demo')
     w.show_all()
-    gtk.main()
+    if do_run:
+        gtk.main()
+    else:
+        return r
 
 if __name__ == "__main__":
     main()
