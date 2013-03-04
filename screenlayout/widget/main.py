@@ -313,6 +313,9 @@ class TransitionWidget(gtk.DrawingArea):
             i = gtk.MenuItem(output.name)
             i.props.submenu = self._contextmenu(output)
             m.add(i)
+
+            if not output.connected:
+                i.props.sensitive = False
         return m
 
     def _contextmenu(self, output):
@@ -326,8 +329,6 @@ class TransitionWidget(gtk.DrawingArea):
 
         enabled = gtk.CheckMenuItem(_("Active"))
         enabled.props.active = oc.active
-        if not oc.active and not os.connected:
-            enabled.props.sensitive = False
         enabled.connect('activate', lambda menuitem: self.set_active(on, menuitem.props.active))
 
         m.add(enabled)
@@ -335,9 +336,9 @@ class TransitionWidget(gtk.DrawingArea):
         if oc.active:
             res_m = gtk.Menu()
             for r in os.modes:
-                i = gtk.CheckMenuItem("%sx%s"%r)
+                i = gtk.CheckMenuItem(str(r))
                 i.props.draw_as_radio = True
-                i.props.active = (oc.mode == r)
+                i.props.active = (oc.mode.name == r.name)
                 def _res_set(menuitem, on, r):
                     try:
                         self.set_resolution(on, r)
