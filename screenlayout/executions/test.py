@@ -44,7 +44,7 @@ def create_statemachine(outfilename="statemachine.zip"):
 
     f.writestr("rm testfile.out", "")
     f.writestr("rm testfile.exit", "1")
-    f.writestr("rm testfile.err", "rm: cannot remove `testfile': No such file or directory\n")
+    f.writestr("rm testfile.err", "rm: cannot remove 'testfile': No such file or directory\n")
     f.writestr("exists/rm testfile.out", "")
     f.writestr("exists/rm testfile.state", "")
 
@@ -106,6 +106,9 @@ class EnvironmentTests(unittest.TestCase):
 
         both_contexts = [zip_context, in_tempdir]
 
+        backuped_lang = os.environ.pop("LANG", None)
+        os.environ['LANG'] = 'C' # required for crafted zipfile
+
         self.AssertEqualJobs(['ls', 'testfile'], context=both_contexts, accept_errors=True)
         self.AssertEqualJobs('ls testfile', shell=True, context=both_contexts, accept_errors=True)
 
@@ -115,6 +118,11 @@ class EnvironmentTests(unittest.TestCase):
         self.AssertEqualJobs(['rm', 'testfile'], context=both_contexts, accept_errors=True)
         self.AssertEqualJobs(['rm', 'testfile'], context=both_contexts, accept_errors=True)
         self.AssertEqualJobs(['ls', 'testfile'], context=both_contexts, accept_errors=True)
+
+        if backuped_lang is None:
+            del os.environ['LANG']
+        else:
+            os.environ['LANG'] = backuped_lang
 
         os.unlink(filename)
         os.rmdir(testdir)
