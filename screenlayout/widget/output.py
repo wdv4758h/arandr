@@ -29,6 +29,11 @@ from ..xrandr.constants import ConnectionStatus, SubpixelOrder
 import gettext
 gettext.install('arandr')
 
+class Tab(object):
+    def _set_outputwidget(self, new_value):
+        self._outputwidget = weakref.ref(new_value)
+    outputwidget = property(lambda self: self._outputwidget(), _set_outputwidget)
+
 class TransitionOutputWidget(gtk.Notebook):
     """A detail widget for a single output of a transition. Bound to (and
     constructed from) a TransitionWidget. This coupling is necessary as long as
@@ -67,16 +72,17 @@ class TransitionOutputWidget(gtk.Notebook):
 
         for t in self.tabs.values():
             self.insert_page(t, t.get_label())
+            t.outputwidget = self
 
     def update(self):
         for t in self.tabs.values():
-            t.update_from(self)
+            t.update()
 
     main_widget = property(lambda self: self._main_widget())
     transition_output = property(lambda self: self.main_widget._transition.outputs[self.output_name])
     server_output = property(lambda self: self.transition_output.server_output)
 
-    class BaseTab(CategoryDefinitionWidget):
+    class BaseTab(CategoryDefinitionWidget, Tab):
         def __init__(self):
             super(TransitionOutputWidget.BaseTab, self).__init__()
 
@@ -112,16 +118,16 @@ class TransitionOutputWidget(gtk.Notebook):
         def get_label():
             return gtk.Label(_("Basic"))
 
-        def update_from(self, widget):
-            self.output_name.props.label = widget.output_name
+        def update(self):
+            self.output_name.props.label = self.outputwidget.output_name
 
             self.connection_status.props.label = {
                     ConnectionStatus('connected'): _("connected"),
                     ConnectionStatus('disconnected'): _("disconnected"),
                     ConnectionStatus('unknown connection'): _("unknown"),
-                    }[widget.server_output.connection_status]
+                    }[self.outputwidget.server_output.connection_status]
 
-            dimensions = (widget.server_output.physical_x, widget.server_output.physical_y)
+            dimensions = (self.outputwidget.server_output.physical_x, self.outputwidget.server_output.physical_y)
             if any(x is None for x in dimensions):
                 self.physical_dimension.props.label = _("–")
                 self.physical_diagonal.props.label = _("–")
@@ -136,9 +142,9 @@ class TransitionOutputWidget(gtk.Notebook):
                     SubpixelOrder('vertical rgb'): _('vertical (RGB)'),
                     SubpixelOrder('vertical bgr'): _('vertical (BGR)'),
                     SubpixelOrder('no subpixels'): _('no subpixels'),
-                    }[widget.server_output.Subpixel]
+                    }[self.outputwidget.server_output.Subpixel]
 
-    class PositionTab(CategoryDefinitionWidget):
+    class PositionTab(CategoryDefinitionWidget, Tab):
         def __init__(self):
             super(TransitionOutputWidget.PositionTab, self).__init__()
 
@@ -164,30 +170,30 @@ class TransitionOutputWidget(gtk.Notebook):
             self.y.props.adjustment.lower = 0
             self.y.props.adjustment.upper = widget.main_widget._transition.server.virtual.max[1]
 
-        def update_from(self, widget):
-            self._configure_limits(widget)
-            usable = widget.transition_output.position is not None
+        def update(self):
+            self._configure_limits(self.outputwidget)
+            usable = self.outputwidget.transition_output.position is not None
             self.x.props.sensitive = usable
             self.y.props.sensitive = usable
             if usable:
-                self.x.props.value = widget.transition_output.position.x
-                self.y.props.value = widget.transition_output.position.y
-            elif widget.server_output.active:
-                self.x.props.value = widget.server_output.geometry.left
-                self.y.props.value = widget.server_output.geometry.top
+                self.x.props.value = self.outputwidget.transition_output.position.x
+                self.y.props.value = self.outputwidget.transition_output.position.y
+            elif self.outputwidget.server_output.active:
+                self.x.props.value = self.outputwidget.server_output.geometry.left
+                self.y.props.value = self.outputwidget.server_output.geometry.top
             else:
                 self.x.props.value = 0
                 self.y.props.value = 0
 
-    class EDIDTab(gtk.Label):
+    class EDIDTab(gtk.Label, Tab):
         def __init__(self):
             super(TransitionOutputWidget.EDIDTab, self).__init__()
             self.props.wrap = True
             self.props.wrap_mode = pango.WRAP_CHAR
 
-        def update_from(self, widget):
-            if 'EDID' in widget.server_output.properties:
-                self.props.label = widget.server_output.properties['EDID'][0].encode('hex')
+        def update(self):
+            if 'EDID' in self.outputwidget.server_output.properties:
+                self.props.label = self.outputwidget.server_output.properties['EDID'][0].encode('hex')
             else:
                 self.props.label = _("No EDID data available.")
 
@@ -195,14 +201,16 @@ class TransitionOutputWidget(gtk.Notebook):
         def get_label():
             return gtk.Label(_("EDID information"))
 
-    class AutomationTab(CategoryDefinitionWidget):
+    class AutomationTab(CategoryDefinitionWidget, Tab):
         def __init__(self):
             super(TransitionOutputWidget.AutomationTab, self).__init__()
 
             MODE_AND_POSITION = _("Mode and position")
             RESET = _("Reset")
 
+            self.configure_anything = gtk.CheckButton()
             self.auto = gtk.CheckButton()
+            self.auto.connect('clicked', self.set_auto)
             self.set_mode = gtk.CheckButton()
             self.set_position = gtk.CheckButton()
 
@@ -210,11 +218,13 @@ class TransitionOutputWidget(gtk.Notebook):
             im = gtk.Image()
             im.props.icon_name = 'undo'
             self.no_advanced_button.props.image = im
+            self.no_advanced_button.connect('clicked', self.reset_advanced)
 
             auto_label = gtk.Label(_("Let <tt>xrandr</tt> decide position and mode:"))
             auto_label.props.use_markup = True
 
             items = [
+                    (MODE_AND_POSITION, _("Configure output at all:"), self.configure_anything),
                     (MODE_AND_POSITION, auto_label, self.auto),
                     (MODE_AND_POSITION, _("Set explicit mode:"), self.set_mode),
                     (MODE_AND_POSITION, _("Set explicit position:"), self.set_position),
@@ -223,9 +233,19 @@ class TransitionOutputWidget(gtk.Notebook):
 
             self.set_items(items)
 
+        def reset_advanced(self, widget):
+            self.configure_anything.props.active = True
+            self.auto.props.active = False
+            self.set_mode.props.active = True
+            self.set_position.props.active = True
+
+        def set_auto(self, widget):
+            self.outputwidget.transition_output.auto = widget.props.active
+            self.outputwidget.emit('changed')
+
         @staticmethod
         def get_label():
             return gtk.Label(_("Advanced automation"))
 
-        def update_from(self, widget):
+        def update(self):
             pass

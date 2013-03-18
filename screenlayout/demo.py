@@ -28,6 +28,8 @@ from .widget import TransitionWidget, TransitionOutputWidget
 current_tabs = [] # kept here just for sake of global access in IPython sessions
 
 def update_tabs(widget, notebook):
+    print "Current configuration:", widget.save_to_string()
+
     outputs = list(widget._transition.outputs.keys())
 
     for t in notebook.children():
@@ -42,6 +44,7 @@ def update_tabs(widget, notebook):
         tabwidget = TransitionOutputWidget(widget, output_name)
         notebook.insert_page(tabwidget, tab_label=gtk.Label(output_name))
         current_tabs.append(tabwidget)
+        tabwidget.connect('changed', lambda *args: widget.emit('changed'))
 
     notebook.show_all()
 
