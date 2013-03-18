@@ -58,18 +58,29 @@ def main(do_run=True):
     r.connect('changed', update_tabs, output_properties)
     r.emit('changed')
 
-    b = gtk.Button("Reload")
-    b.connect('clicked', lambda *args: r.load_from_x())
+    b1 = gtk.Button("Reload")
+    b1.connect('clicked', lambda *args: r.load_from_x())
 
-    b2 = gtk.Button("Apply")
-    b2.connect('clicked', lambda *args: r.save_to_x())
+    b2 = gtk.Button("Preview command")
+    def preview(*args):
+        d = gtk.Dialog("Command preview", w, gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT, (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+        l = gtk.Label(r.save_to_string())
+        d.vbox.add(l)
+        d.show_all()
+        d.run()
+        d.destroy()
+    b2.connect('clicked', preview)
+
+    b3 = gtk.Button("Apply")
+    b3.connect('clicked', lambda *args: r.save_to_x())
 
     v = gtk.VBox()
     w.add(v)
     v.add(r)
     v.add(output_properties)
-    v.add(b)
+    v.add(b1)
     v.add(b2)
+    v.add(b3)
     w.set_title('Simple ARandR Widget Demo')
     w.show_all()
     if do_run:

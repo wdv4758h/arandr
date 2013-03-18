@@ -119,6 +119,15 @@ class TransitionWidget(gtk.DrawingArea):
         # serialization again
         self.load_from_x()
 
+    def save_to_string(self):
+        import sys
+        if sys.version >= (3, 3):
+            from shlex import quote as shell_quote
+        else:
+            from pipes import quote as shell_quote
+
+        return " ".join(map(shell_quote, self._transition.serialize()))
+
     '''
     def save_to_file(self, file, template=None, additional=None):
         data = self._xrandr.save_to_shellscript_string(template, additional)

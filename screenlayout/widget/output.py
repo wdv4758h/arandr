@@ -33,7 +33,9 @@ class TransitionOutputWidget(gtk.Notebook):
     """A detail widget for a single output of a transition. Bound to (and
     constructed from) a TransitionWidget. This coupling is necessary as long as
     the transition widget wraps general server/transition handling like server
-    re-creation after updates.
+    re-creation after updates; additionally, some of the interface requires
+    knowledge of the complete transition / complete server (eg. virtual
+    bounds); only those should access main_widget.
 
     The transition output widget is not bound to a transition output object,
     but only to an output name. This is done so that when the server is
@@ -58,7 +60,9 @@ class TransitionOutputWidget(gtk.Notebook):
     def _create_tabs(self):
         self.tabs = OrderedDict([
             ('base', self.BaseTab()),
+            ('position', self.PositionTab()),
             ('edid', self.EDIDTab()),
+            ('automation', self.AutomationTab()),
             ])
 
         for t in self.tabs.values():
@@ -68,7 +72,8 @@ class TransitionOutputWidget(gtk.Notebook):
         for t in self.tabs.values():
             t.update_from(self)
 
-    transition_output = property(lambda self: self._main_widget()._transition.outputs[self.output_name])
+    main_widget = property(lambda self: self._main_widget())
+    transition_output = property(lambda self: self.main_widget._transition.outputs[self.output_name])
     server_output = property(lambda self: self.transition_output.server_output)
 
     class BaseTab(CategoryDefinitionWidget):
@@ -133,6 +138,46 @@ class TransitionOutputWidget(gtk.Notebook):
                     SubpixelOrder('no subpixels'): _('no subpixels'),
                     }[widget.server_output.Subpixel]
 
+    class PositionTab(CategoryDefinitionWidget):
+        def __init__(self):
+            super(TransitionOutputWidget.PositionTab, self).__init__()
+
+            PRECISE_COORDINATES = _("Precise coordinates")
+
+            self.x = gtk.SpinButton()
+            self.y = gtk.SpinButton()
+
+            items = [
+                    (PRECISE_COORDINATES, _("Pixels from left:"), self.x),
+                    (PRECISE_COORDINATES, _("Pixels from top:"), self.y),
+                    ]
+
+            self.set_items(items)
+
+        @staticmethod
+        def get_label():
+            return gtk.Label(_("Position"))
+
+        def _configure_limits(self, widget):
+            self.x.props.adjustment.lower = 0
+            self.x.props.adjustment.upper = widget.main_widget._transition.server.virtual.max[0]
+            self.y.props.adjustment.lower = 0
+            self.y.props.adjustment.upper = widget.main_widget._transition.server.virtual.max[1]
+
+        def update_from(self, widget):
+            self._configure_limits(widget)
+            usable = widget.transition_output.position is not None
+            self.x.props.sensitive = usable
+            self.y.props.sensitive = usable
+            if usable:
+                self.x.props.value = widget.transition_output.position.x
+                self.y.props.value = widget.transition_output.position.y
+            elif widget.server_output.active:
+                self.x.props.value = widget.server_output.geometry.left
+                self.y.props.value = widget.server_output.geometry.top
+            else:
+                self.x.props.value = 0
+                self.y.props.value = 0
 
     class EDIDTab(gtk.Label):
         def __init__(self):
@@ -149,3 +194,38 @@ class TransitionOutputWidget(gtk.Notebook):
         @staticmethod
         def get_label():
             return gtk.Label(_("EDID information"))
+
+    class AutomationTab(CategoryDefinitionWidget):
+        def __init__(self):
+            super(TransitionOutputWidget.AutomationTab, self).__init__()
+
+            MODE_AND_POSITION = _("Mode and position")
+            RESET = _("Reset")
+
+            self.auto = gtk.CheckButton()
+            self.set_mode = gtk.CheckButton()
+            self.set_position = gtk.CheckButton()
+
+            self.no_advanced_button = gtk.Button(_("Don't use advanced automation"))
+            im = gtk.Image()
+            im.props.icon_name = 'undo'
+            self.no_advanced_button.props.image = im
+
+            auto_label = gtk.Label(_("Let <tt>xrandr</tt> decide position and mode:"))
+            auto_label.props.use_markup = True
+
+            items = [
+                    (MODE_AND_POSITION, auto_label, self.auto),
+                    (MODE_AND_POSITION, _("Set explicit mode:"), self.set_mode),
+                    (MODE_AND_POSITION, _("Set explicit position:"), self.set_position),
+                    (RESET, self.no_advanced_button, None),
+                    ]
+
+            self.set_items(items)
+
+        @staticmethod
+        def get_label():
+            return gtk.Label(_("Advanced automation"))
+
+        def update_from(self, widget):
+            pass
