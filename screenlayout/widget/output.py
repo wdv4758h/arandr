@@ -98,6 +98,7 @@ class TransitionOutputWidget(gtk.Notebook):
             self.subpixels = gtk.Label()
 
             self.active = gtk.CheckButton()
+            self.active.connect('clicked', self.set_active)
             self.resolution = gtk.ComboBox()
             self.refreshrate = gtk.ComboBox()
 
@@ -143,6 +144,27 @@ class TransitionOutputWidget(gtk.Notebook):
                     SubpixelOrder('vertical bgr'): _('vertical (BGR)'),
                     SubpixelOrder('no subpixels'): _('no subpixels'),
                     }[self.outputwidget.server_output.Subpixel]
+
+            if self.outputwidget.transition_output.off:
+                self.active.props.inconsistent = False
+                self.active.props.active = False
+            elif self.outputwidget.transition_output.named_mode or self.outputwidget.transition_output.precise_mode:
+                self.active.props.inconsistent = False
+                self.active.props.active = True
+            else:
+                self.active.props.inconsistent = True
+                self.active.props.active = False
+
+            self.resolution.props.sensitive = bool(self.outputwidget.transition_output.named_mode)
+            print "would assign modes:", self.outputwidget.server_output.assigned_modes
+            # FIXME CONTINUE HERE: flatten mode names into resolution list, flatten rates into rates list, list all modes in advanced tab.
+
+        def set_active(self, widget):
+            if widget.props.active:
+                self.resolution.emit('changed')
+            else:
+                self.outputwidget.transition_output.off = True
+                self.outputwidget.emit('changed')
 
     class PositionTab(CategoryDefinitionWidget, Tab):
         def __init__(self):
