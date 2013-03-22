@@ -187,7 +187,8 @@ class Server(object):
                     "\(0x(?P<mode_id>[0-9a-fA-F]+)\) +"
                     "(?P<pixelclock>[0-9]+\.[0-9]+)MHz"
                     "(?P<flags>( ([+-][HVC]Sync|Interlace|DoubleScan|CSync))*)"
-                    ".*$"),
+                    "(?P<serverflags>( (\\*current|\\+preferred))*)"
+                    "(?P<garbage>.*)$"),
                 re.compile("^      h:"
                     " +width +(?P<hwidth>[0-9]+)"
                     " +start +(?P<hstart>[0-9]+)"
@@ -225,6 +226,12 @@ class Server(object):
                     [ModeFlag(x) for x in matchdata['flags'].split()],
                     )
 
+            if matchdata['garbage']:
+                warnings.warn("Unparsed part of line: %r"%matchdata['garbage'])
+
+            ret.is_preferred = '+preferred' in matchdata['serverflags']
+            ret.is_current = '*current' in matchdata['serverflags']
+
             ret.name = matchdata['name']
             ret.id = int(matchdata['mode_id'], 16)
 
@@ -237,7 +244,7 @@ class Server(object):
             return ret
 
         def __repr__(self):
-            return "<%s %r (%#x) %s>"%(type(self).__name__, self.name, self.id, tuple.__repr__(self))
+            return "<%s %r (%#x) %s%s%s>"%(type(self).__name__, self.name, self.id, tuple.__repr__(self), " preferred" if self.is_preferred else "", " current" if self.is_current else "")
 
     class Output(object):
         """Parser and representation of an output of a Server"""

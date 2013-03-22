@@ -99,7 +99,8 @@ class TransitionOutputWidget(gtk.Notebook):
 
             self.active = gtk.CheckButton()
             self.active.connect('clicked', self.set_active)
-            self.resolution = gtk.ComboBox()
+            self.resolution = self._construct_resolution_box()
+            self.resolution.connect('changed', self.set_resolution)
             self.refreshrate = gtk.ComboBox()
 
             items = [
@@ -114,6 +115,23 @@ class TransitionOutputWidget(gtk.Notebook):
                     ]
 
             self.set_items(items)
+
+        @staticmethod
+        def _construct_resolution_box():
+            b = gtk.ComboBox()
+            crt = gtk.CellRendererText()
+            b.pack_end(crt, expand=False)
+            def labelfun(celllayout, cell, model, iter):
+                cell.props.text = u"\N{BLACK STAR}" if model.get_value(iter, 0).is_preferred else "" # u"\N{MIDDLE DOT}"
+            b.set_cell_data_func(crt, labelfun)
+
+            crt = gtk.CellRendererText()
+            b.pack_start(crt, expand=True)
+            def labelfun(celllayout, cell, model, iter):
+                cell.props.text = model.get_value(iter, 0).name
+            b.set_cell_data_func(crt, labelfun)
+
+            return b
 
         @staticmethod
         def get_label():
@@ -145,6 +163,7 @@ class TransitionOutputWidget(gtk.Notebook):
                     SubpixelOrder('no subpixels'): _('no subpixels'),
                     }[self.outputwidget.server_output.Subpixel]
 
+
             if self.outputwidget.transition_output.off:
                 self.active.props.inconsistent = False
                 self.active.props.active = False
@@ -155,16 +174,57 @@ class TransitionOutputWidget(gtk.Notebook):
                 self.active.props.inconsistent = True
                 self.active.props.active = False
 
+
             self.resolution.props.sensitive = bool(self.outputwidget.transition_output.named_mode)
-            print "would assign modes:", self.outputwidget.server_output.assigned_modes
-            # FIXME CONTINUE HERE: flatten mode names into resolution list, flatten rates into rates list, list all modes in advanced tab.
+
+            model_by_name = gtk.ListStore(gobject.TYPE_PYOBJECT)
+            modenames = set(m.name for m in self.outputwidget.server_output.assigned_modes)
+            modecollections = [self.ModeCollectionByName(n, [m for m in self.outputwidget.server_output.assigned_modes if m.name == n]) for n in modenames]
+            modecollections.sort(key=lambda a: (a.is_preferred, a.modes[0].width * a.modes[0].height), reverse=True)
+            select_iter = None
+            for mc in modecollections:
+                mc_iter = model_by_name.append((mc,))
+                if mc.name == self.outputwidget.transition_output.named_mode:
+                    select_iter = mc_iter
+            self.resolution.props.model = model_by_name
+            if select_iter is not None:
+                self.resolution.set_active_iter(select_iter)
+
+            # FIXME CONTINUE HERE: procede like that with rates
 
         def set_active(self, widget):
             if widget.props.active:
-                self.resolution.emit('changed')
+                self.outputwidget.transition_output.precise_mode = None
+                self.outputwidget.transition_output.off = None
+                self.outputwidget.transition_output.auto = None
+
+                if self.resolution.get_active() == -1:
+                    self.resolution.set_active(0) # first choice offered is probably what most will want, given it's sorted by preferred and then by size
+                else:
+                    self.resolution.emit('changed')
             else:
+                self.outputwidget.transition_output.named_mode = None
+                self.outputwidget.transition_output.rate = None
+                self.outputwidget.transition_output.precise_mode = None
+                self.outputwidget.transition_output.auto = None
                 self.outputwidget.transition_output.off = True
                 self.outputwidget.emit('changed')
+
+        def set_resolution(self, widget):
+            selected_collection = widget.props.model.get_value(widget.get_active_iter(), 0)
+            if self.outputwidget.transition_output.named_mode != selected_collection.name:
+                self.outputwidget.transition_output.named_mode = selected_collection.name
+                self.outputwidget.emit('changed')
+
+        class ModeCollectionByName(object):
+            def __init__(self, name, modes):
+                self.name = name
+                self.modes = modes
+
+                assert all(m.name == self.name for m in self.modes)
+
+            is_preferred = property(lambda self: any(x.is_preferred for x in self.modes))
+            is_current = property(lambda self: any(x.is_current for x in self.modes))
 
     class PositionTab(CategoryDefinitionWidget, Tab):
         def __init__(self):
