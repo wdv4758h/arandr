@@ -259,8 +259,8 @@ class TransitionOutputWidget(gtk.Notebook):
             self.x.props.sensitive = usable
             self.y.props.sensitive = usable
             if usable:
-                self.x.props.value = self.outputwidget.transition_output.position.x
-                self.y.props.value = self.outputwidget.transition_output.position.y
+                self.x.props.value = self.outputwidget.transition_output.position.left
+                self.y.props.value = self.outputwidget.transition_output.position.top
             elif self.outputwidget.server_output.active:
                 self.x.props.value = self.outputwidget.server_output.geometry.left
                 self.y.props.value = self.outputwidget.server_output.geometry.top
@@ -296,6 +296,7 @@ class TransitionOutputWidget(gtk.Notebook):
             self.explicit_mode = gtk.CheckButton()
             self.explicit_mode.connect('clicked', self.set_explicit_mode)
             self.explicit_position = gtk.CheckButton()
+            self.explicit_position.connect('clicked', self.set_explicit_position)
 
             self.no_advanced_button = gtk.Button(_("Don't use advanced automation"))
             im = gtk.Image()
@@ -330,6 +331,7 @@ class TransitionOutputWidget(gtk.Notebook):
                 self.outputwidget.transition_output.rate = None
                 self.outputwidget.transition_output.precise_mode = None
                 self.outputwidget.transition_output.off = False
+                self.outputwidget.transition_output.position = None
             self.outputwidget.transition_output.auto = widget.props.active
             self.outputwidget.emit('changed')
 
@@ -344,6 +346,17 @@ class TransitionOutputWidget(gtk.Notebook):
                 self.outputwidget.transition_output.named_mode = None
                 self.outputwidget.transition_output.rate = None
                 self.outputwidget.transition_output.precise_mode = None
+            self.outputwidget.emit('changed')
+
+        def set_explicit_position(self, widget):
+            old_state = bool(self.outputwidget.transition_output.position)
+            if old_state == widget.props.active:
+                return
+
+            if widget.props.active:
+                self.outputwidget.transition_output.set_any_position()
+            else:
+                self.outputwidget.transition_output.position = None
             self.outputwidget.emit('changed')
 
         @staticmethod

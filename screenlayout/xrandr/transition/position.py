@@ -35,5 +35,14 @@ class TransitionOutputForPosition(base.BaseTransitionOutput):
             self.position = args.pos
             del args.pos
         super(TransitionOutputForPosition, self).unserialize(args)
+
+    def set_any_position(self):
+        """Use this if you want to configure a position but don't care which
+        one"""
+        if self.server_output.active:
+            self.position = self.server_output.geometry.position
+        else:
+            self.position = Position(0, 0)
+
 class TransitionForPosition(base.BaseTransition):
     Output = TransitionOutputForPosition

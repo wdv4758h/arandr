@@ -266,6 +266,15 @@ class Server(object):
                 "( (?P<physical_x>[0-9]+)mm x (?P<physical_y>[0-9]+)mm)?"
                 "$")
 
+        @property
+        def mode(self):
+            if self.mode_number is False:
+                return False
+            for m in self.assigned_modes:
+                if m.id == self.mode_number:
+                    return m
+            raise ValueError("Output in an inconsistent state: active mode is not assigned")
+
         def _parse_headline(self, headline):
             headline_parsed = self.HEADLINE_EXPRESSION.match(headline)
             if headline_parsed is None:

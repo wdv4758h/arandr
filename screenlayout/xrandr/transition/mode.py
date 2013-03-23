@@ -92,7 +92,11 @@ class TransitionOutputForMode(base.BaseTransitionOutput):
 
         self.auto = False
         self.off = False
-        best_mode = max(self.server_output.assigned_modes, key=lambda m: (m.is_preferred, m.width * m.height))
+
+        if self.server_output.active:
+            best_mode = self.server_output.mode
+        else:
+            best_mode = max(self.server_output.assigned_modes, key=lambda m: (m.is_preferred, m.width * m.height))
         self.named_mode = best_mode.name
 
     def get_configured_mode(self):

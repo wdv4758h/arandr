@@ -99,8 +99,21 @@ class TransitionWidget(gtk.DrawingArea):
     def load_from_x(self):
         server = Server(context=self.context, force_version=self.force_version)
         self._transition = Transition(server)
-        # FIXME: self._transition.load_reasonable_defaults()
+        self._make_transition_nonempty()
         self._xrandr_was_reloaded()
+
+    def _make_transition_nonempty(self):
+        """Set some configuration parameters in the transition that don't
+        change the server in its default configuration, but help the user get
+        an overview of the state in the transition.
+
+        Only call this with an empty transition."""
+        for output in self._transition.outputs.values():
+            if output.server_output.active:
+                output.set_any_mode()
+                output.set_any_position()
+            else:
+                output.off = True
 
     def _xrandr_was_reloaded(self):
         self.sequence = sorted(self._transition.outputs.values())
