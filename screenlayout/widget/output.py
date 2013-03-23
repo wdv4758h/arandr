@@ -193,25 +193,26 @@ class TransitionOutputWidget(gtk.Notebook):
             # FIXME CONTINUE HERE: procede like that with rates
 
         def set_active(self, widget):
-            if widget.props.active:
-                self.outputwidget.transition_output.precise_mode = None
-                self.outputwidget.transition_output.off = None
-                self.outputwidget.transition_output.auto = None
+            old_state = bool(self.outputwidget.transition_output.named_mode or self.outputwidget.transition_output.precise_mode)
+            if widget.props.active == old_state:
+                return
 
-                if self.resolution.get_active() == -1:
-                    self.resolution.set_active(0) # first choice offered is probably what most will want, given it's sorted by preferred and then by size
-                else:
-                    self.resolution.emit('changed')
+            if widget.props.active:
+                self.outputwidget.transition_output.set_any_mode()
             else:
                 self.outputwidget.transition_output.named_mode = None
                 self.outputwidget.transition_output.rate = None
                 self.outputwidget.transition_output.precise_mode = None
-                self.outputwidget.transition_output.auto = None
+                self.outputwidget.transition_output.auto = False
                 self.outputwidget.transition_output.off = True
-                self.outputwidget.emit('changed')
+            self.outputwidget.emit('changed')
 
         def set_resolution(self, widget):
-            selected_collection = widget.props.model.get_value(widget.get_active_iter(), 0)
+            active_iter = widget.get_active_iter()
+            if active_iter is None:
+                warnings.warn("set_resolution callback triggered without configured mode. If this happens inside an update() function, a widget emitted an event even though it should not have.")
+                return
+            selected_collection = widget.props.model.get_value(active_iter, 0)
             if self.outputwidget.transition_output.named_mode != selected_collection.name:
                 self.outputwidget.transition_output.named_mode = selected_collection.name
                 self.outputwidget.emit('changed')
@@ -290,11 +291,11 @@ class TransitionOutputWidget(gtk.Notebook):
             MODE_AND_POSITION = _("Mode and position")
             RESET = _("Reset")
 
-            self.configure_anything = gtk.CheckButton()
             self.auto = gtk.CheckButton()
             self.auto.connect('clicked', self.set_auto)
-            self.set_mode = gtk.CheckButton()
-            self.set_position = gtk.CheckButton()
+            self.explicit_mode = gtk.CheckButton()
+            self.explicit_mode.connect('clicked', self.set_explicit_mode)
+            self.explicit_position = gtk.CheckButton()
 
             self.no_advanced_button = gtk.Button(_("Don't use advanced automation"))
             im = gtk.Image()
@@ -306,23 +307,43 @@ class TransitionOutputWidget(gtk.Notebook):
             auto_label.props.use_markup = True
 
             items = [
-                    (MODE_AND_POSITION, _("Configure output at all:"), self.configure_anything),
                     (MODE_AND_POSITION, auto_label, self.auto),
-                    (MODE_AND_POSITION, _("Set explicit mode:"), self.set_mode),
-                    (MODE_AND_POSITION, _("Set explicit position:"), self.set_position),
+                    (MODE_AND_POSITION, _("Set explicit mode:"), self.explicit_mode),
+                    (MODE_AND_POSITION, _("Set explicit position:"), self.explicit_position),
                     (RESET, self.no_advanced_button, None),
                     ]
 
             self.set_items(items)
 
         def reset_advanced(self, widget):
-            self.configure_anything.props.active = True
             self.auto.props.active = False
-            self.set_mode.props.active = True
-            self.set_position.props.active = True
+            self.explicit_mode.props.active = True
+            self.explicit_position.props.active = True
 
         def set_auto(self, widget):
+            old_state = self.outputwidget.transition_output.auto
+            if old_state == widget.props.active:
+                return
+
+            if widget.props.active:
+                self.outputwidget.transition_output.named_mode = None
+                self.outputwidget.transition_output.rate = None
+                self.outputwidget.transition_output.precise_mode = None
+                self.outputwidget.transition_output.off = False
             self.outputwidget.transition_output.auto = widget.props.active
+            self.outputwidget.emit('changed')
+
+        def set_explicit_mode(self, widget):
+            old_state = bool(self.outputwidget.transition_output.named_mode or self.outputwidget.transition_output.precise_mode)
+            if old_state == widget.props.active:
+                return
+
+            if widget.props.active:
+                self.outputwidget.transition_output.set_any_mode()
+            else:
+                self.outputwidget.transition_output.named_mode = None
+                self.outputwidget.transition_output.rate = None
+                self.outputwidget.transition_output.precise_mode = None
             self.outputwidget.emit('changed')
 
         @staticmethod
@@ -330,4 +351,7 @@ class TransitionOutputWidget(gtk.Notebook):
             return gtk.Label(_("Advanced automation"))
 
         def update(self):
-            pass
+            to = self.outputwidget.transition_output
+            self.auto.props.active = to.auto
+            self.explicit_mode.props.active = bool(to.named_mode or to.precise_mode)
+            self.explicit_position.props.active = bool(to.position)

@@ -29,6 +29,10 @@ current_tabs = [] # kept here just for sake of global access in IPython sessions
 
 def update_tabs(widget, notebook):
     print "Current configuration:", widget.save_to_string()
+    for ok, od in widget._transition.outputs.items():
+        print ok, vars(od)
+    print dict((k,d) for (k, d) in vars(widget._transition).items() if k not in ('outputs', 'predicted_server', 'server'))
+    print
 
     outputs = list(widget._transition.outputs.keys())
 

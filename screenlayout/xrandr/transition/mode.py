@@ -23,8 +23,8 @@ class TransitionOutputForMode(base.BaseTransitionOutput):
         self.named_mode = None
         self.precise_mode = None
         self.rate = None
-        self.auto = None
-        self.off = None
+        self.auto = False
+        self.off = False
 
     def validate(self):
         super(TransitionOutputForMode, self).validate()
@@ -32,10 +32,10 @@ class TransitionOutputForMode(base.BaseTransitionOutput):
         if self.precise_mode is not None and (self.rate is not None or self.named_mode is not None):
             raise InadequateConfiguration("Named modes or refresh rates can not be used together with precise mode settings.")
 
-        if self.auto is not None and any(x is not None for x in (self.precise_mode, self.named_mode, self.rate)):
+        if self.auto and any(x is not None for x in (self.precise_mode, self.named_mode, self.rate)):
             raise InadequateConfiguration("Switching an output to auto is mutually exclusive with setting a mode.")
 
-        if self.off is not None and any(x is not None for x in (self.precise_mode, self.named_mode, self.rate, self.auto)):
+        if self.off and (any(x is not None for x in (self.precise_mode, self.named_mode, self.rate)) or self.auto):
             raise InadequateConfiguration("Switching an output off is mutually exclusive with setting a mode.")
 
     def serialize(self):
@@ -84,6 +84,16 @@ class TransitionOutputForMode(base.BaseTransitionOutput):
             del args.off
 
         super(TransitionOutputForMode, self).unserialize(args)
+
+    def set_any_mode(self):
+        """Use this if you want to configure a mode but don't care which one"""
+        if self.named_mode or self.precise_mode:
+            return
+
+        self.auto = False
+        self.off = False
+        best_mode = max(self.server_output.assigned_modes, key=lambda m: (m.is_preferred, m.width * m.height))
+        self.named_mode = best_mode.name
 
     def get_configured_mode(self):
         pass
