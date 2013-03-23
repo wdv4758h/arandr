@@ -26,6 +26,8 @@ import pango
 from ..gtktools import CategoryDefinitionWidget
 from ..xrandr.constants import ConnectionStatus, SubpixelOrder
 
+from ..auxiliary import Position
+
 import gettext
 gettext.install('arandr')
 
@@ -173,6 +175,7 @@ class TransitionOutputWidget(gtk.Notebook):
             else:
                 self.active.props.inconsistent = True
                 self.active.props.active = False
+            self.active.props.sensitive = self.outputwidget.server_output.connection_status != ConnectionStatus('disconnected') # FIXME: check what happens when we have a unknown status with no modes
 
 
             self.resolution.props.sensitive = bool(self.outputwidget.transition_output.named_mode)
@@ -236,7 +239,14 @@ class TransitionOutputWidget(gtk.Notebook):
             PRECISE_COORDINATES = _("Precise coordinates")
 
             self.x = gtk.SpinButton()
+            self.x.connect('changed', self.set_position)
             self.y = gtk.SpinButton()
+            self.y.connect('changed', self.set_position)
+
+            self.x.props.adjustment.props.lower = 0
+            self.y.props.adjustment.props.lower = 0
+            self.x.props.adjustment.props.step_increment = 1
+            self.y.props.adjustment.props.step_increment = 1
 
             items = [
                     (PRECISE_COORDINATES, _("Pixels from left:"), self.x),
@@ -269,6 +279,25 @@ class TransitionOutputWidget(gtk.Notebook):
             else:
                 self.x.props.value = 0
                 self.y.props.value = 0
+
+            pso = self.outputwidget.transition_output.predicted_server_output
+            if pso.active:
+                self.x.props.adjustment.props.upper = self.outputwidget.transition_output.transition.server.virtual.max.width - pso.geometry.width
+                self.y.props.adjustment.props.upper = self.outputwidget.transition_output.transition.server.virtual.max.height - pso.geometry.height
+            else:
+                self.x.props.adjustment.props.upper = 0
+                self.y.props.adjustment.props.upper = 0
+
+        def set_position(self, widget):
+            old_position = self.outputwidget.transition_output.position
+            if self.x.props.sensitive:
+                new_position = Position((self.x.props.value, self.y.props.value))
+            else:
+                new_position = None
+
+            if old_position != new_position:
+                self.outputwidget.transition_output.position = new_position
+                self.outputwidget.emit('changed')
 
     class EDIDTab(gtk.Label, Tab):
         def __init__(self):
@@ -370,3 +399,5 @@ class TransitionOutputWidget(gtk.Notebook):
             self.auto.props.active = to.auto
             self.explicit_mode.props.active = bool(to.named_mode or to.precise_mode)
             self.explicit_position.props.active = bool(to.position)
+
+            # FIXME: disable stuff when output can't be enabled, compare basic tab's .active
