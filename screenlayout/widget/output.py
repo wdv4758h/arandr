@@ -291,7 +291,7 @@ class TransitionOutputWidget(gtk.Notebook):
         def set_position(self, widget):
             old_position = self.outputwidget.transition_output.position
             if self.x.props.sensitive:
-                new_position = Position((self.x.props.value, self.y.props.value))
+                new_position = Position((int(self.x.props.value), int(self.y.props.value)))
             else:
                 new_position = None
 
