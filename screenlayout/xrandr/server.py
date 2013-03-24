@@ -36,8 +36,8 @@ class Server(object):
 
         self.version = self.Version(self._output_help(), self._output('--version'))
 
-        if not force_version and not self.version.program_version.startswith(('1.2', '1.3', )):
-            raise Exception("XRandR 1.2/1.3 required.")
+        if not force_version and not self.version.program_version.startswith(('1.2', '1.3', '1.4', )):
+            raise Exception("XRandR 1.2 to 1.4 required.")
 
         self.load(self._output('--query', '--verbose'))
 
@@ -78,6 +78,8 @@ class Server(object):
         self.outputs = {}
         self.modes = {}
 
+        self.primary = None
+
         while lines:
             line = lines.pop(0)
             if line.startswith((' ', '\t')):
@@ -96,7 +98,11 @@ class Server(object):
             # headline, details and modes filled; interpret the data before
             # going through this again
 
-            output = self.Output(headline, details)
+            primary = [] # hack to get the information about an output being primary out and set it later
+            def setpri(): primary.append(True)
+            output = self.Output(headline, details, setpri)
+            if primary:
+                self.primary = output
             self.outputs[output.name] = output
 
             self._load_modes(modes, output)
@@ -181,6 +187,23 @@ class Server(object):
                 else:
                     self.program_version = '< 1.2'
 
+        def at_least_program_version(self, major, minor):
+            if major < 1:
+                return True
+
+            if major > 1:
+                return False
+
+            if minor < 3:
+                raise ValueError("Can't check for that early version numbers for lack of implementation")
+
+            if '<' in self.program_version or 'x' in self.program_version:
+                return False
+
+            parsed_version = tuple(map(int, self.program_version.split(".")))
+
+            return (major, minor, 0) <= parsed_version
+
         def __repr__(self):
             return "<Version server %r, program %r>"%(self.server_version, self.program_version)
 
@@ -254,15 +277,16 @@ class Server(object):
     class Output(object):
         """Parser and representation of an output of a Server"""
 
-        def __init__(self, headline, details):
+        def __init__(self, headline, details, primary_callback):
             self.assigned_modes = [] # filled with modes by the server parser, as it keeps track of the modes
             self.properties = {}
 
-            self._parse_headline(headline)
+            self._parse_headline(headline, primary_callback)
             self._parse_details(details)
 
         HEADLINE_EXPRESSION = re.compile(
                 "^(?P<name>.*) (?P<connection>connected|disconnected|unknown connection) "
+                "(?P<primary>primary )?"
                 "((?P<current_geometry>[0-9-+x]+)( \(0x(?P<current_mode>[0-9a-fA-F]+)\))? (?P<current_rotation>normal|left|inverted|right) ((?P<current_reflection>none|X axis|Y axis|X and Y axis) )?)?"
                 "\("
                 "(?P<supported_rotations>((normal|left|inverted|right) ?)*)"
@@ -280,7 +304,7 @@ class Server(object):
                     return m
             raise ValueError("Output in an inconsistent state: active mode is not assigned")
 
-        def _parse_headline(self, headline):
+        def _parse_headline(self, headline, primary_callback):
             headline_parsed = self.HEADLINE_EXPRESSION.match(headline)
             if headline_parsed is None:
                 raise XRandRParseError("Unmatched headline: %r."%headline)
@@ -289,6 +313,9 @@ class Server(object):
             self.name = headline_parsed['name']
             # the values were already checked in the regexp
             self.connection_status = ConnectionStatus(headline_parsed['connection'])
+
+            if headline_parsed['primary']:
+                primary_callback()
 
             if headline_parsed['current_geometry']:
                 self.active = True

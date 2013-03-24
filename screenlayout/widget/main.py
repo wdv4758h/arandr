@@ -114,6 +114,15 @@ class TransitionWidget(gtk.DrawingArea):
                 output.set_any_position()
             else:
                 output.off = True
+        if self._transition.server.primary is not None:
+            print "setting primary to", self._transition.server.primary.name
+            self._transition.primary = self._transition.outputs[self._transition.server.primary.name]
+        else:
+            if self._transition.server.version.at_least_program_version(1, 4):
+                self._transition.primary = self._transition.NO_PRIMARY
+            else:
+                # earlier versions don't report a primary, so it's a safe default not to touch primary at all
+                pass
 
     def _xrandr_was_reloaded(self):
         self.sequence = sorted(self._transition.outputs.values())
