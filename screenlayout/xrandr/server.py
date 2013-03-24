@@ -135,6 +135,11 @@ class Server(object):
             if assign_to_output is not None:
                 assign_to_output.assigned_modes.append(mode)
 
+            if assign_to_output is not None and assign_to_output.active == True and assign_to_output.mode_number == None:
+                # old xrandr version (< 1.2.2) workaround
+                if mode.width == assign_to_output.geometry.width and mode.height == assign_to_output.geometry.height:
+                    assign_to_output.mode_number = mode.id
+
     #################### sub objects ####################
 
     class Version(object):
@@ -258,7 +263,7 @@ class Server(object):
 
         HEADLINE_EXPRESSION = re.compile(
                 "^(?P<name>.*) (?P<connection>connected|disconnected|unknown connection) "
-                "((?P<current_geometry>[0-9-+x]+) \(0x(?P<current_mode>[0-9a-fA-F]+)\) (?P<current_rotation>normal|left|inverted|right) ((?P<current_reflection>none|X axis|Y axis|X and Y axis) )?)?"
+                "((?P<current_geometry>[0-9-+x]+)( \(0x(?P<current_mode>[0-9a-fA-F]+)\))? (?P<current_rotation>normal|left|inverted|right) ((?P<current_reflection>none|X axis|Y axis|X and Y axis) )?)?"
                 "\("
                 "(?P<supported_rotations>((normal|left|inverted|right) ?)*)"
                 "(?P<supported_reflections>((x axis|y axis) ?)*)"
@@ -285,9 +290,14 @@ class Server(object):
             # the values were already checked in the regexp
             self.connection_status = ConnectionStatus(headline_parsed['connection'])
 
-            if headline_parsed['current_mode']:
+            if headline_parsed['current_geometry']:
                 self.active = True
-                self.mode_number = int(headline_parsed['current_mode'], 16)
+                if headline_parsed['current_mode']:
+                    self.mode_number = int(headline_parsed['current_mode'], 16)
+                else:
+                    # current_mode is only shown since xrandr 1.2.2; for everything before that, we have to guess because there was no '*current' either
+                    warnings.warn("Old xrandr version (< 1.2.2), guessing current mode")
+                    self.mode_number = None
                 try:
                     self.geometry = Geometry(headline_parsed['current_geometry'])
                 except ValueError:
@@ -398,7 +408,7 @@ class Server(object):
                     changable = None
 
             else:
-                warnings.warn("Can not interpred detail %r"%label)
+                warnings.warn("Can not interpret detail %r"%label)
                 return
 
             self.properties[label] = (data, changable)
