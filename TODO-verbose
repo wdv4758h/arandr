@@ -1,0 +1,43 @@
+short term
+
+* implement refresh rates in tabs
+* make widget basics functional again (drag&drop)
+
+next steps
+
+* implement rotation in tabs
+* restore right-click menu in widget
+
+getting closer to no-regressions
+
+* rewire to main gui application
+* file saving / loading
+
+maybe do sooner than later
+
+* add zip container building and replaying to demo widget
+* add zip container building and replaying to main gui
+
+the cool stuff
+
+* implement properties tab
+* parse edid
+* add ssh autodiscovery to gui
+* proper properties window
+* setting dpi
+
+the advanced stuff
+
+* add panning
+* add scaling
+* add general matrices
+* adding modelines
+
+the not-so-interesting-but-for-sake-of-completeness stuff
+
+* mirroring
+
+the slightly off-topic stuff
+
+* overhaul keybindings
+* integrate with startup
