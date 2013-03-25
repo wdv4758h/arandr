@@ -104,6 +104,8 @@ class TransitionOutputWidget(gtk.Notebook):
             self.resolution = self._construct_resolution_box()
             self.resolution.connect('changed', self.set_resolution)
             self.refreshrate = gtk.ComboBox()
+            self.primary = gtk.CheckButton()
+            self.primary.connect('clicked', self.set_primary)
 
             items = [
                     (OUTPUT, _("Output name:"), self.output_name),
@@ -114,6 +116,7 @@ class TransitionOutputWidget(gtk.Notebook):
                     (CONFIG, _("Output active:"), self.active),
                     (CONFIG, _("Resolution:"), self.resolution),
                     (CONFIG, _("Refresh rate:"), self.refreshrate),
+                    (CONFIG, _("Primary output:"), self.primary),
                     ]
 
             self.set_items(items)
@@ -195,6 +198,8 @@ class TransitionOutputWidget(gtk.Notebook):
 
             # FIXME CONTINUE HERE: procede like that with rates
 
+            self.primary.props.active = self.outputwidget.transition_output is self.outputwidget.transition_output.transition.primary
+
         def set_active(self, widget):
             old_state = bool(self.outputwidget.transition_output.named_mode or self.outputwidget.transition_output.precise_mode)
             if widget.props.active == old_state:
@@ -231,6 +236,18 @@ class TransitionOutputWidget(gtk.Notebook):
 
             is_preferred = property(lambda self: any(x.is_preferred for x in self.modes))
             is_current = property(lambda self: any(x.is_current for x in self.modes))
+
+        def set_primary(self, widget):
+            old_state = self.outputwidget.transition_output.transition.primary is self.outputwidget.transition_output
+            if old_state == widget.props.active:
+                return
+
+            if widget.props.active:
+                self.outputwidget.transition_output.transition.primary = self.outputwidget.transition_output
+            else:
+                self.outputwidget.transition_output.transition.primary = self.outputwidget.transition_output.transition.NO_PRIMARY
+
+            self.outputwidget.emit('changed')
 
     class PositionTab(CategoryDefinitionWidget, Tab):
         def __init__(self):
@@ -320,6 +337,7 @@ class TransitionOutputWidget(gtk.Notebook):
             super(TransitionOutputWidget.AutomationTab, self).__init__()
 
             MODE_AND_POSITION = _("Mode and position")
+            GLOBAL = _("Global options")
             RESET = _("Reset")
 
             self.auto = gtk.CheckButton()
@@ -328,6 +346,9 @@ class TransitionOutputWidget(gtk.Notebook):
             self.explicit_mode.connect('clicked', self.set_explicit_mode)
             self.explicit_position = gtk.CheckButton()
             self.explicit_position.connect('clicked', self.set_explicit_position)
+
+            self.explicit_primary = gtk.CheckButton()
+            self.explicit_primary.connect('clicked', self.set_explicit_primary)
 
             self.no_advanced_button = gtk.Button(_("Don't use advanced automation"))
             im = gtk.Image()
@@ -342,6 +363,7 @@ class TransitionOutputWidget(gtk.Notebook):
                     (MODE_AND_POSITION, auto_label, self.auto),
                     (MODE_AND_POSITION, _("Set explicit mode:"), self.explicit_mode),
                     (MODE_AND_POSITION, _("Set explicit position:"), self.explicit_position),
+                    (GLOBAL, _("Set explicit primary screen:"), self.explicit_primary),
                     (RESET, self.no_advanced_button, None),
                     ]
 
@@ -390,6 +412,17 @@ class TransitionOutputWidget(gtk.Notebook):
                 self.outputwidget.transition_output.position = None
             self.outputwidget.emit('changed')
 
+        def set_explicit_primary(self, widget):
+            old_state = self.outputwidget.transition_output.transition.primary is not None
+            if old_state == widget.props.active:
+                return
+
+            if widget.props.active:
+                self.outputwidget.transition_output.transition.primary = self.outputwidget.transition_output.transition.NO_PRIMARY
+            else:
+                self.outputwidget.transition_output.transition.primary = None
+            self.outputwidget.emit('changed')
+
         @staticmethod
         def get_label():
             return gtk.Label(_("Advanced automation"))
@@ -399,5 +432,6 @@ class TransitionOutputWidget(gtk.Notebook):
             self.auto.props.active = to.auto
             self.explicit_mode.props.active = bool(to.named_mode or to.precise_mode)
             self.explicit_position.props.active = bool(to.position)
+            self.explicit_primary.props.active = to.transition.primary is not None
 
             # FIXME: disable stuff when output can't be enabled, compare basic tab's .active
