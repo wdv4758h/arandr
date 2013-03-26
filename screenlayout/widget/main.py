@@ -482,8 +482,6 @@ class TransitionWidget(gtk.DrawingArea):
 
         self._transition.predict_server()
 
-        print "drag start", output
-
         self._draggingsnap = Snap(
                 output.predicted_server_output.geometry.size,
                 self.factor*5,
@@ -519,6 +517,7 @@ class TransitionWidget(gtk.DrawingArea):
             return
 
         # shove output in. shoving around will always work, so unconditionally:
+        self._transition.shove_to_fit()
         self.emit('changed')
         context.finish(True, False, time)
 

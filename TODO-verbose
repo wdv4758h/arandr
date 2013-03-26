@@ -1,7 +1,6 @@
 short term
 
 * implement refresh rates in tabs
-* make widget basics functional again (drag&drop) -- currently: predict position and mode
 * hide primary controls when using xrandr 1.2
 
 next steps

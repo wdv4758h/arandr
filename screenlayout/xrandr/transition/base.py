@@ -44,6 +44,9 @@ class BaseTransitionOutput(object):
         """Analogous to ``BaseTransition.serialize``"""
         return []
 
+    def shove_to_fit(self):
+        """Analogous to ``BaseTransition.shove_to_fit``"""
+
     def validate(self):
         """Analogous to ``BaseTransition.validate``"""
 
@@ -55,7 +58,8 @@ class BaseTransitionOutput(object):
 
     def predict_server(self):
         """Update .predicted_server_output as BaseTransition.predict_server
-        does"""
+        does. Do not call this directly unless you know what you're doing
+        (instead, call the complete transition's predict_server function)."""
 class BaseTransition(object):
     """Transition instructions for one X server's state to a new one; basically
     an internal representation of an ``xrandr`` invocation. See
@@ -82,6 +86,18 @@ class BaseTransition(object):
         my_output_class = type("%sOutput"%type(self).__name__, tuple(bases), {})
 
         self.outputs = dict((name, my_output_class(name, self)) for name in self.server.outputs)
+
+    def shove_to_fit(self):
+        """Give a transition a chance to modify itself if it is in a state that
+        would not pass validation, but can easily be bent gracefully.
+
+        This is not intended for fixing things that can be easily set at
+        programming time (like removing --auto when --off gets set), but to
+        primarily for adapting to impossible user requests (like outputs placed
+        outside the virtual, which is currently the only implemented
+        functionality)."""
+        for o in self.outputs.values():
+            o.shove_to_fit()
 
     def validate(self):
         """Check if a transition is currently valid (can be applied to the
