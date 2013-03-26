@@ -19,6 +19,11 @@ maybe do sooner than later
 * add zip container building and replaying to demo widget
 * add zip container building and replaying to main gui
 
+pre-prerelease cleanup
+
+* overhaul strings
+* overhaul visuals
+
 the cool stuff
 
 * implement properties tab

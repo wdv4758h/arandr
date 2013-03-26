@@ -118,7 +118,6 @@ class TransitionWidget(gtk.DrawingArea):
             else:
                 output.off = True
         if self._transition.server.primary is not None:
-            print "setting primary to", self._transition.server.primary.name
             self._transition.primary = self._transition.outputs[self._transition.server.primary.name]
         else:
             if self._transition.server.version.at_least_program_version(1, 4):
@@ -234,8 +233,6 @@ class TransitionWidget(gtk.DrawingArea):
         cr.set_source_rgb(0.25,0.25,0.25)
         cr.rectangle(0,0,*transition.server.virtual.max)
         cr.fill()
-
-        print "draw"
 
         # for most painting related stuff, it is easier to just access a
 
