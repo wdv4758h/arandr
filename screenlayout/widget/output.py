@@ -254,9 +254,9 @@ class TransitionOutputWidget(gtk.Notebook):
             PRECISE_COORDINATES = _("Precise coordinates")
 
             self.x = gtk.SpinButton()
-            self.x.connect('changed', self.set_position)
+            self.x.connect('value-changed', self.set_position)
             self.y = gtk.SpinButton()
-            self.y.connect('changed', self.set_position)
+            self.y.connect('value-changed', self.set_position)
 
             self.x.props.adjustment.props.lower = 0
             self.y.props.adjustment.props.lower = 0

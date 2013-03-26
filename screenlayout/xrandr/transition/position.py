@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from . import base
+from ...auxiliary import Geometry
 
 # FIXME: this needs validation over the complete size parameters, not sure how
 # this plays together with scaling etc
@@ -44,5 +45,13 @@ class TransitionOutputForPosition(base.BaseTransitionOutput):
         else:
             self.position = Position(0, 0)
 
+    def predict_server(self):
+        if self.position is not None:
+            self.predicted_server_output.geometry = Geometry(
+                self.position.left,
+                self.position.top,
+                self.predicted_server_output.geometry.width,
+                self.predicted_server_output.geometry.height,
+                )
 class TransitionForPosition(base.BaseTransition):
     Output = TransitionOutputForPosition
