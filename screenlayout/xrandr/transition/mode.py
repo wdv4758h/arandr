@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from . import base
-from ...auxiliary import InadequateConfiguration
+from ...auxiliary import InadequateConfiguration, Geometry
 
 class TransitionOutputForMode(base.BaseTransitionOutput):
     def _initialize_empty(self):
@@ -100,12 +100,30 @@ class TransitionOutputForMode(base.BaseTransitionOutput):
         self.named_mode = best_mode.name
 
     def get_configured_mode(self):
-        pass
+        if self.precise_mode is None and self.named_mode is None:
+            return None
+
+        if self.precise_mode:
+            return self.precise_mode
+
+        # this will be random to a certain extent, but at least predictable as
+        # to which resolution will be chosen. in most cases, all the matching
+        # modes will all have the same resolution anyway
+        return max((m for m in self.server_output.assigned_modes if m.name == self.named_mode), key=lambda m: (m.is_preferred, m.width * m.height))
 
     def predict_server(self):
+        configuredmode = self.get_configured_mode()
         if self.off:
             self.predicted_server_output.active = False
-        if self.auto or self.named_mode or self.precise_mode:
+        if self.auto or configuredmode is not None:
             self.predicted_server_output.active = True
+
+        if configuredmode is not None:
+            self.predicted_server_output.geometry = Geometry(
+                self.predicted_server_output.geometry.left,
+                self.predicted_server_output.geometry.top,
+                configuredmode.width,
+                configuredmode.height,
+                )
 class TransitionForMode(base.BaseTransition):
     Output = TransitionOutputForMode
