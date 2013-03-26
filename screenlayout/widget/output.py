@@ -62,8 +62,6 @@ class TransitionOutputWidget(gtk.Notebook):
 
         self._create_tabs()
 
-        self.update()
-
     def _create_tabs(self):
         self.tabs = OrderedDict([
             ('base', self.BaseTab()),
@@ -389,7 +387,7 @@ class TransitionOutputWidget(gtk.Notebook):
             self.outputwidget.emit('changed')
 
         def set_explicit_mode(self, widget):
-            old_state = bool(self.outputwidget.transition_output.named_mode or self.outputwidget.transition_output.precise_mode)
+            old_state = bool(self.outputwidget.transition_output.named_mode or self.outputwidget.transition_output.precise_mode or self.outputwidget.transition_output.off)
             if old_state == widget.props.active:
                 return
 
@@ -399,6 +397,7 @@ class TransitionOutputWidget(gtk.Notebook):
                 self.outputwidget.transition_output.named_mode = None
                 self.outputwidget.transition_output.rate = None
                 self.outputwidget.transition_output.precise_mode = None
+                self.outputwidget.transition_output.off = False
             self.outputwidget.emit('changed')
 
         def set_explicit_position(self, widget):
@@ -430,7 +429,7 @@ class TransitionOutputWidget(gtk.Notebook):
         def update(self):
             to = self.outputwidget.transition_output
             self.auto.props.active = to.auto
-            self.explicit_mode.props.active = bool(to.named_mode or to.precise_mode)
+            self.explicit_mode.props.active = bool(to.named_mode or to.precise_mode or to.off)
             self.explicit_position.props.active = bool(to.position)
             self.explicit_primary.props.active = to.transition.primary is not None
 

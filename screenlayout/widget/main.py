@@ -48,6 +48,9 @@ class TransitionWidget(gtk.DrawingArea):
         self.connect('button-press-event', self.click)
         self.set_events(gtk.gdk.BUTTON_PRESS_MASK)
 
+        self.connect('changed', lambda widget: self._transition.predict_server()) # has to be registered first, so the other handlers can rely on having a current predicted_server present
+        self.connect('changed', lambda widget: self._force_repaint())
+
         self.setup_draganddrop()
 
         self._transition = None
@@ -232,16 +235,16 @@ class TransitionWidget(gtk.DrawingArea):
         cr.rectangle(0,0,*transition.server.virtual.max)
         cr.fill()
 
-        cr.set_source_rgb(0.5,0.5,0.5)
-        cr.rectangle(0,0,*transition.server.virtual.current) # FIXME: we should get an expected virtual
-        cr.fill()
+        print "draw"
 
         # for most painting related stuff, it is easier to just access a
-        # predicted server than to merge transition details with server data
-        transition.predict_server()
 
-        for output in self.sequence:
-            predicted = output.predicted_server_output
+        cr.set_source_rgb(0.5,0.5,0.5)
+        cr.rectangle(0,0,*transition.predicted_server.virtual.current)
+        cr.fill()
+
+        for output_transition in self.sequence:
+            predicted = output_transition.predicted_server_output
             if not predicted.active:
                 continue
 
@@ -256,23 +259,46 @@ class TransitionWidget(gtk.DrawingArea):
             cr.rectangle(*rect)
             cr.stroke()
 
+            bigtext = predicted.name
+            if output_transition.auto or (not output_transition.named_mode or output_transition.precise_mode):
+                ## painted below the output name, must not be too long
+                smalltext = _("actual size may vary")
+            else:
+                smalltext = None
+
             # set up for text -- FIXME: there gotta be a better way...
-            cr.save()
             textwidth = rect[3 if predicted.rotation.is_odd else 2]
-            widthperchar = textwidth/len(predicted.name)
+            widthperchar = textwidth/len(bigtext)
             textheight = int(widthperchar * 0.8) # i think this looks nice and won't overflow even for wide fonts
 
             newdescr = pango.FontDescription("sans")
             newdescr.set_size(textheight * pango.SCALE)
 
+            if smalltext:
+                st_widthperchar = textwidth/len(smalltext)
+                st_textheight = int(st_widthperchar * 0.8)
+                st_descr = pango.FontDescription("sans")
+                st_descr.set_size(st_textheight * pango.SCALE)
+
             # create text
             layout = cr.create_layout()
             layout.set_font_description(newdescr)
-            layout.set_text(predicted.name)
+            layout.set_text(bigtext)
+
+            # create small text
+            if smalltext:
+                st_layout = cr.create_layout()
+                st_layout.set_font_description(st_descr)
+                st_layout.set_text(smalltext)
 
             # position text
             layoutsize = layout.get_pixel_size()
-            layoutoffset = -layoutsize[0]/2, -layoutsize[1]/2
+            if smalltext:
+                st_layoutsize = st_layout.get_pixel_size()
+                layoutoffset = -layoutsize[0]/2, -layoutsize[1]/2 - st_layoutsize[1]/2
+            else:
+                layoutoffset = -layoutsize[0]/2, -layoutsize[1]/2
+            cr.save()
             cr.move_to(*center)
             cr.rotate(predicted.rotation.angle)
             cr.rel_move_to(*layoutoffset)
@@ -281,8 +307,20 @@ class TransitionWidget(gtk.DrawingArea):
             cr.show_layout(layout)
             cr.restore()
 
+            if smalltext:
+                layoutoffset = -st_layoutsize[0]/2, layoutsize[1]/2 - st_layoutsize[1]/2
+                cr.save()
+                cr.move_to(*center)
+                cr.rotate(predicted.rotation.angle)
+                cr.rel_move_to(*layoutoffset)
+                cr.show_layout(st_layout)
+                cr.restore()
+
     def _force_repaint(self):
         # using self.allocation as rect is offset by the menu bar.
+        if self.window is None:
+            return # event received before window swas allocated
+
         self.window.invalidate_rect(gtk.gdk.Rectangle(0,0,self._transition.server.virtual.max[0]//self.factor,self._transition.server.virtual.max[1]//self.factor), False)
         # this has the side effect of not painting out of the available region on drag and drop
 

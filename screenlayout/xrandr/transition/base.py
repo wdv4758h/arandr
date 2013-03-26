@@ -67,8 +67,6 @@ class BaseTransition(object):
     def __init__(self, server):
         self.server = server
 
-        self.predicted_server = PredictedServer(server)
-
         self._initialize_empty()
 
     def _initialize_empty(self):
@@ -123,7 +121,7 @@ class BaseTransition(object):
         Raises an ``auxiliary.FileSyntaxError`` when the command line can not
         be read."""
 
-        del args.output # technical remnant
+        del args.output # technical remnant from argument parsing (--output_
         if 'output_grouped' in args:
             for output_name, output_args in args.output_grouped.items():
                 if output_name not in self.outputs:
@@ -137,6 +135,8 @@ class BaseTransition(object):
     def predict_server(self):
         """Update .predicted_server to reflect what after applying the
         transition, the server is supposed to look like."""
+
+        self.predicted_server = PredictedServer(self.server)
 
         for output in self.outputs.values():
             output.predict_server()

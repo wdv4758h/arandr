@@ -101,5 +101,11 @@ class TransitionOutputForMode(base.BaseTransitionOutput):
 
     def get_configured_mode(self):
         pass
+
+    def predict_server(self):
+        if self.off:
+            self.predicted_server_output.active = False
+        if self.auto or self.named_mode or self.precise_mode:
+            self.predicted_server_output.active = True
 class TransitionForMode(base.BaseTransition):
     Output = TransitionOutputForMode

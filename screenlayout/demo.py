@@ -49,6 +49,7 @@ def update_tabs(widget, notebook):
         notebook.insert_page(tabwidget, tab_label=gtk.Label(output_name))
         current_tabs.append(tabwidget)
         tabwidget.connect('changed', lambda *args: widget.emit('changed'))
+        tabwidget.update()
 
     notebook.show_all()
 
