@@ -255,6 +255,13 @@ class TransitionWidget(gtk.DrawingArea):
             cr.set_source_rgba(1,1,1,0.7)
             cr.rectangle(*rect)
             cr.fill()
+            if predicted is transition.predicted_server.primary:
+                # FIXME: better visual
+                cr.set_source_rgba(1,1,1,1)
+                cr.rectangle(rect[0] + 0.3 * rect[2], rect[1] + 0.9 * rect[3], 0.4 * rect[2], 0.1 * rect[3])
+                cr.fill()
+                cr.rectangle(rect[0], rect[1], rect[2], 0.05 * rect[3])
+                cr.fill()
             cr.set_source_rgb(0,0,0)
             cr.rectangle(*rect)
             cr.stroke()

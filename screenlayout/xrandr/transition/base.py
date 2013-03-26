@@ -19,11 +19,10 @@ import copy
 
 class PredictedServer(object):
     def __init__(self, original_server):
-        # might need some automation later in the process
-        self.outputs = copy.deepcopy(original_server.outputs)
-        self.version = copy.deepcopy(original_server.version)
-        self.virtual = copy.deepcopy(original_server.virtual)
-        self.modes = copy.deepcopy(original_server.modes)
+        for k,v in vars(original_server).items():
+            if k == 'context':
+                continue # a predicted server can't do anything, it's just for information
+            setattr(self, k, v)
 
 class BaseTransitionOutput(object):
     transition = property(lambda self: self._transition())

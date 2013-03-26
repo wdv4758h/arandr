@@ -51,4 +51,13 @@ class TransitionForPrimary(base.BaseTransition):
 
         super(TransitionForPrimary, self).unserialize(args)
 
+    def predict_server(self):
+        super(TransitionForPrimary, self).predict_server()
+
+        if self.primary == self.NO_PRIMARY:
+            self.predicted_server.primary = None
+
+        if self.primary not in (None, self.NO_PRIMARY):
+            self.predicted_server.primary = self.predicted_server.outputs[self.primary.name]
+
     Output = TransitionOutputForPrimary
