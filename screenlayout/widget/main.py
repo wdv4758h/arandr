@@ -25,6 +25,7 @@ from ..xrandr.server import Server
 from ..xrandr.transition import Transition
 from ..snap import Snap
 from .. import executions
+from ..auxiliary import Geometry, Position, InadequateConfiguration
 
 import gettext
 gettext.install('arandr')
@@ -84,7 +85,7 @@ class TransitionWidget(gtk.DrawingArea):
         max_gapless = sum(max(max(m.width, m.height) for m in o.assigned_modes) if o.assigned_modes else 0 for o in self._transition.server.outputs.values()) # this ignores that some outputs might not support rotation, but will always err at the side of caution.
         # have some buffer
         usable_size = int(max_gapless * 1.1)
-        # don't request too large a window, but make sure very possible compination fits
+        # don't request too large a window, but make sure every possible combination fits
         xdim = min(self._transition.server.virtual.max[0], usable_size)
         ydim = min(self._transition.server.virtual.max[1], usable_size)
         self.set_size_request(xdim//self.factor, ydim//self.factor)
@@ -307,7 +308,7 @@ class TransitionWidget(gtk.DrawingArea):
             cr.rotate(predicted.rotation.angle)
             cr.rel_move_to(*layoutoffset)
 
-            # pain text
+            # paint text
             cr.show_layout(layout)
             cr.restore()
 
@@ -456,6 +457,7 @@ class TransitionWidget(gtk.DrawingArea):
         #self.drag_dest_set(0, [], 0)
 
         self._draggingfrom = None
+        self._draggingfrom_pos = None
         self._draggingoutput = None
         self.connect('drag-begin', self._dragbegin_cb)
         self.connect('drag-motion', self._dragmotion_cb)
@@ -470,17 +472,23 @@ class TransitionWidget(gtk.DrawingArea):
         except IndexError:
             # FIXME: abort?
             context.set_icon_stock(gtk.STOCK_CANCEL, 10,10)
+            widget.emit('drag-failed', context, gtk.DragResult())
             return None
 
         self._draggingoutput = output
         self._draggingfrom = self._lastclick
+        self._draggingfrom_pos = output.position or output.predicted_server_output.geometry.position
         context.set_icon_stock(gtk.STOCK_FULLSCREEN, 10,10)
 
+        self._transition.predict_server()
+
+        print "drag start", output
+
         self._draggingsnap = Snap(
-                self._xrandr.configuration.outputs[self._draggingoutput].size,
+                output.predicted_server_output.geometry.size,
                 self.factor*5,
-                [(Position((0,0)),self._xrandr.state.virtual.max)]+[
-                    (v.position, v.size) for (k,v) in self._xrandr.configuration.outputs.items() if k!=self._draggingoutput and v.active
+                [Geometry(0, 0, *self._transition.predicted_server.virtual.max)]+[
+                    o.geometry for o in self._transition.predicted_server.outputs.values() if o.name!=self._draggingoutput.name and o.active
                 ]
             )
 
@@ -494,9 +502,14 @@ class TransitionWidget(gtk.DrawingArea):
 
         rel = x-self._draggingfrom[0], y-self._draggingfrom[1]
 
-        oldpos = self._xrandr.configuration.outputs[self._draggingoutput].position
-        newpos = Position((oldpos[0]+self.factor*rel[0], oldpos[1]+self.factor*rel[1]))
-        self._xrandr.configuration.outputs[self._draggingoutput].tentative_position = self._draggingsnap.suggest(newpos)
+        newpos = Position((self._draggingfrom_pos[0]+self.factor*rel[0], self._draggingfrom_pos[1]+self.factor*rel[1]))
+        self._draggingoutput.position = self._draggingsnap.suggest(newpos)
+        # in this very particular case, we're really calling the output's
+        # predict function. thus, no new objects or stuff are created, but we
+        # only update the predicted state on top of the current prediction.
+        # this is ok because there is only one thing we change, and we always
+        # change it (position).
+        self._draggingoutput.predict_server()
         self._force_repaint()
 
         return True
@@ -505,19 +518,11 @@ class TransitionWidget(gtk.DrawingArea):
         if not self._draggingoutput:
             return
 
-        try:
-            self.set_position(self._draggingoutput, self._xrandr.configuration.outputs[self._draggingoutput].tentative_position)
-        except InadequateConfiguration:
-            context.finish(False, False, time)
-            #raise # snapping back to the original position should be enought feedback
-
+        # shove output in. shoving around will always work, so unconditionally:
+        self.emit('changed')
         context.finish(True, False, time)
 
     def _dragend_cb(self, widget, context):
-        try:
-            del self._xrandr.configuration.outputs[self._draggingoutput].tentative_position
-        except KeyError:
-            pass # already reloaded
         self._draggingoutput = None
         self._draggingfrom = None
-        self._force_repaint()
+        self._draggingfrom_pos = None

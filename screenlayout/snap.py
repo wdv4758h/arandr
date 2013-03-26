@@ -18,21 +18,21 @@ from .auxiliary import Position
 
 class Snap(object):
     """Snap-to-edges manager"""
-    def __init__(self, size, tolerance, list):
+    def __init__(self, size, tolerance, geometries=[]):
         self.tolerance = tolerance
 
         self.horizontal = set()
         self.vertical = set()
-        for i in list:
-            self.vertical.add(i[0].left)
-            self.vertical.add(i[0].left+i[1].width)
-            self.horizontal.add(i[0].top)
-            self.horizontal.add(i[0].top+i[1].height)
+        for i in geometries:
+            self.vertical.add(i.left)
+            self.vertical.add(i.left+i.width)
+            self.horizontal.add(i.top)
+            self.horizontal.add(i.top+i.height)
 
-            self.vertical.add(i[0].left-size.width)
-            self.vertical.add(i[0].left+i[1].width-size.width)
-            self.horizontal.add(i[0].top-size.height)
-            self.horizontal.add(i[0].top+i[1].height-size.height)
+            self.vertical.add(i.left-size.width)
+            self.vertical.add(i.left+i.width-size.width)
+            self.horizontal.add(i.top-size.height)
+            self.horizontal.add(i.top+i.height-size.height)
 
     def suggest(self, position):
         vertical = [x for x in self.vertical if abs(x-position[0])<self.tolerance]

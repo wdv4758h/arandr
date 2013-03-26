@@ -254,9 +254,9 @@ class TransitionOutputWidget(gtk.Notebook):
             PRECISE_COORDINATES = _("Precise coordinates")
 
             self.x = gtk.SpinButton()
-            self.x.connect('value-changed', self.set_position)
+            self.x.connect('value-changed', self.set_x)
             self.y = gtk.SpinButton()
-            self.y.connect('value-changed', self.set_position)
+            self.y.connect('value-changed', self.set_y)
 
             self.x.props.adjustment.props.lower = 0
             self.y.props.adjustment.props.lower = 0
@@ -303,15 +303,20 @@ class TransitionOutputWidget(gtk.Notebook):
                 self.x.props.adjustment.props.upper = 0
                 self.y.props.adjustment.props.upper = 0
 
-        def set_position(self, widget):
-            old_position = self.outputwidget.transition_output.position
-            if self.x.props.sensitive:
-                new_position = Position((int(self.x.props.value), int(self.y.props.value)))
-            else:
-                new_position = None
+        def set_x(self, widget):
+            if self.outputwidget.transition_output.position is None:
+                return
 
-            if old_position != new_position:
-                self.outputwidget.transition_output.position = new_position
+            if self.outputwidget.transition_output.position.left != int(self.x.props.value):
+                self.outputwidget.transition_output.position = Position((int(self.x.props.value), self.outputwidget.transition_output.position.top))
+                self.outputwidget.emit('changed')
+
+        def set_y(self, widget):
+            if self.outputwidget.transition_output.position is None:
+                return
+
+            if self.outputwidget.transition_output.position.top != int(self.y.props.value):
+                self.outputwidget.transition_output.position = Position((self.outputwidget.transition_output.position.left, int(self.y.props.value)))
                 self.outputwidget.emit('changed')
 
     class EDIDTab(gtk.Label, Tab):
