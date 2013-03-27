@@ -101,7 +101,8 @@ class TransitionOutputWidget(gtk.Notebook):
             self.active.connect('clicked', self.set_active)
             self.resolution = self._construct_resolution_box()
             self.resolution.connect('changed', self.set_resolution)
-            self.refreshrate = gtk.ComboBox()
+            self.refreshrate = self._construct_rate_box()
+            self.refreshrate.connect('changed', self.set_refreshrate)
             self.primary = gtk.CheckButton()
             self.primary.connect('clicked', self.set_primary)
 
@@ -132,6 +133,24 @@ class TransitionOutputWidget(gtk.Notebook):
             b.pack_start(crt, expand=True)
             def labelfun(celllayout, cell, model, iter):
                 cell.props.text = model.get_value(iter, 0).name
+            b.set_cell_data_func(crt, labelfun)
+
+            return b
+
+        @staticmethod
+        def _construct_rate_box():
+            b = gtk.ComboBox()
+            crt = gtk.CellRendererText()
+            b.pack_end(crt, expand=False)
+            def labelfun(celllayout, cell, model, iter):
+                cell.props.text = u"\N{BLACK STAR}" if model.get_value(iter, 1) else "" # u"\N{MIDDLE DOT}"
+            b.set_cell_data_func(crt, labelfun)
+
+            crt = gtk.CellRendererText()
+            b.pack_start(crt, expand=True)
+            def labelfun(celllayout, cell, model, iter):
+                data = model.get_value(iter, 0)
+                cell.props.text = "Automatic" if data == 0 else str(data)
             b.set_cell_data_func(crt, labelfun)
 
             return b
@@ -194,7 +213,29 @@ class TransitionOutputWidget(gtk.Notebook):
             if select_iter is not None:
                 self.resolution.set_active_iter(select_iter)
 
-            # FIXME CONTINUE HERE: procede like that with rates
+            if self.outputwidget.transition_output.named_mode:
+                model_refreshrates = gtk.ListStore(float, bool)
+                select_iter = None
+                rates = set()
+                # deduplicate based on rounded values
+                for m in self.outputwidget.server_output.assigned_modes:
+                    if m.name != self.outputwidget.transition_output.named_mode:
+                        continue
+                    rate = round(m.refreshrate, 1)
+                    if (rate, False) in rates:
+                        rates.remove((rate, False))
+                    rates.add((rate, m.is_preferred))
+                rates = [(0, False)] + list(rates)
+                for rate, preferred in sorted(rates, key=lambda t: (t[0] != 0, not t[1], t[0])):
+                    current_iter = model_refreshrates.append((rate, preferred))
+                    if rate == self.outputwidget.transition_output.rate or (rate == 0 and self.outputwidget.transition_output.rate is None):
+                        select_iter = current_iter
+                self.refreshrate.props.model = model_refreshrates
+                if select_iter is not None:
+                    self.refreshrate.set_active_iter(select_iter)
+                self.refreshrate.props.sensitive = True
+            else:
+                self.refreshrate.props.sensitive = False
 
             self.primary.props.active = self.outputwidget.transition_output is self.outputwidget.transition_output.transition.primary
 
@@ -234,6 +275,13 @@ class TransitionOutputWidget(gtk.Notebook):
 
             is_preferred = property(lambda self: any(x.is_preferred for x in self.modes))
             is_current = property(lambda self: any(x.is_current for x in self.modes))
+
+        def set_refreshrate(self, widget):
+            active_iter = widget.get_active_iter()
+            selected_rate = widget.props.model.get_value(active_iter, 0) or None
+            if selected_rate != self.outputwidget.transition_output.rate:
+                self.outputwidget.transition_output.rate = selected_rate
+                self.outputwidget.emit('changed')
 
         def set_primary(self, widget):
             old_state = self.outputwidget.transition_output.transition.primary is self.outputwidget.transition_output
