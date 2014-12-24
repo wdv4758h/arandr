@@ -23,9 +23,14 @@ import optparse
 import screenlayout.xrandr
 import screenlayout.meta
 
+from pipes import quote as shell_quote
+
 p = optparse.OptionParser(description=__doc__, usage="%prog", version=screenlayout.meta.__version__)
 p.parse_args()
 
-current = screenlayout.xrandr.XRandR()
-current.load_from_x()
-print current.save_to_shellscript_string(["%(xrandr)s"]).strip()
+server = screenlayout.xrandr.Server()
+transition = screenlayout.xrandr.Transition(server)
+# FIXME: decide where
+# screenlayout.widget.main.TransitionWidget._make_transition_nonempty can live
+# to be available here
+print " ".join(shell_quote(x) for x in ["xrandr"] + transition.serialize())
