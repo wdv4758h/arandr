@@ -17,9 +17,9 @@
 from __future__ import division
 import os
 import stat
-import pango
-import pangocairo
-import gobject, gtk
+from gi.repository import Pango as pango
+from gi.repository import PangoCairo as pangocairo
+from gi.repository import Gtk as gtk, GObject as gobject, Gdk as gdk
 from ..xrandr.constants import ConnectionStatus
 from ..xrandr.server import Server
 from ..xrandr.transition import Transition
@@ -32,7 +32,6 @@ gettext.install('arandr')
 
 class TransitionWidget(gtk.DrawingArea):
     __gsignals__ = {
-            'expose-event':'override', # FIXME: still needed?
             'changed':(gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
             }
 
@@ -46,8 +45,10 @@ class TransitionWidget(gtk.DrawingArea):
 
         self.set_size_request(1024//self.factor, 1024//self.factor) # best guess for now
 
+        self.connect('draw', self.do_draw)
+
         self.connect('button-press-event', self.click)
-        self.set_events(gtk.gdk.BUTTON_PRESS_MASK)
+        self.set_events(gdk.EventMask.BUTTON_PRESS_MASK)
 
         self.connect('changed', lambda widget: self._transition.predict_server()) # has to be registered first, so the other handlers can rely on having a current predicted_server present
         self.connect('changed', lambda widget: self._force_repaint())
@@ -132,7 +133,7 @@ class TransitionWidget(gtk.DrawingArea):
         self._lastclick = (-1,-1)
 
         self._update_size_request()
-        if self.window:
+        if self.get_window():
             self._force_repaint()
         self.emit('changed')
 
@@ -214,17 +215,9 @@ class TransitionWidget(gtk.DrawingArea):
 
     #################### painting ####################
 
-    def do_expose_event(self, event):
-        cr = pangocairo.CairoContext(self.window.cairo_create())
-        cr.rectangle(event.area.x, event.area.y, event.area.width, event.area.height)
-        cr.clip()
-
-        # clear
-        cr.set_source_rgb(0,0,0)
-        cr.rectangle(0,0,*self.window.get_size())
-        cr.fill()
-        cr.save()
-
+    def do_draw(self, cr):
+#        print("args", cr)
+#        return
         cr.scale(1/self.factor, 1/self.factor)
         cr.set_line_width(self.factor*1.5)
 
@@ -286,15 +279,15 @@ class TransitionWidget(gtk.DrawingArea):
                 st_descr.set_size(st_textheight * pango.SCALE)
 
             # create text
-            layout = cr.create_layout()
+            layout = pangocairo.create_layout(cr)
             layout.set_font_description(newdescr)
-            layout.set_text(bigtext)
+            layout.set_text(bigtext, len(bigtext))
 
             # create small text
             if smalltext:
-                st_layout = cr.create_layout()
+                st_layout = pangocairo.create_layout(cr)
                 st_layout.set_font_description(st_descr)
-                st_layout.set_text(smalltext)
+                st_layout.set_text(smalltext, len(smalltext))
 
             # position text
             layoutsize = layout.get_pixel_size()
@@ -309,7 +302,7 @@ class TransitionWidget(gtk.DrawingArea):
             cr.rel_move_to(*layoutoffset)
 
             # paint text
-            cr.show_layout(layout)
+            pangocairo.show_layout(cr, layout)
             cr.restore()
 
             if smalltext:
@@ -318,15 +311,18 @@ class TransitionWidget(gtk.DrawingArea):
                 cr.move_to(*center)
                 cr.rotate(predicted.rotation.angle)
                 cr.rel_move_to(*layoutoffset)
-                cr.show_layout(st_layout)
+                pangocairo.show_layout(cr, st_layout)
                 cr.restore()
 
     def _force_repaint(self):
         # using self.allocation as rect is offset by the menu bar.
-        if self.window is None:
+        if self.get_window() is None:
             return # event received before window swas allocated
 
-        self.window.invalidate_rect(gtk.gdk.Rectangle(0,0,self._transition.server.virtual.max[0]//self.factor,self._transition.server.virtual.max[1]//self.factor), False)
+        r = gdk.Rectangle()
+        r.width = self._transition.server.virtual.max[0]//self.factor
+        r.height = self._transition.server.virtual.max[1]//self.factor
+        self.get_window().invalidate_rect(r, False)
         # this has the side effect of not painting out of the available region on drag and drop
 
     #################### click handling ####################
@@ -451,9 +447,9 @@ class TransitionWidget(gtk.DrawingArea):
     #################### drag&drop ####################
 
     def setup_draganddrop(self):
-        self.drag_source_set(gtk.gdk.BUTTON1_MASK, [('screenlayout-output', gtk.TARGET_SAME_WIDGET, 0)], 0)
-        self.drag_dest_set(0, [('screenlayout-output', gtk.TARGET_SAME_WIDGET, 0)], 0)
-        #self.drag_source_set(gtk.gdk.BUTTON1_MASK, [], 0)
+        self.drag_source_set(gdk.ModifierType.BUTTON1_MASK, [gtk.TargetEntry.new('screenlayout-output', gtk.TargetFlags.SAME_WIDGET, 0)], 0)
+        self.drag_dest_set(0, [gtk.TargetEntry.new('screenlayout-output', gtk.TargetFlags.SAME_WIDGET, 0)], 0)
+        #self.drag_source_set(gdk.EventMask.BUTTON1_MOTION_MASK, [], 0)
         #self.drag_dest_set(0, [], 0)
 
         self._draggingfrom = None
@@ -496,7 +492,7 @@ class TransitionWidget(gtk.DrawingArea):
         if not self._draggingoutput: # from void; should be already aborted
             return False
 
-        context.drag_status(gtk.gdk.ACTION_MOVE, time)
+        context.drag_status(gdk.ACTION_MOVE, time)
 
         rel = x-self._draggingfrom[0], y-self._draggingfrom[1]
 

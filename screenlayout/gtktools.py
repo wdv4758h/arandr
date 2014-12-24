@@ -23,7 +23,7 @@ or form an own independent module in the style of sexy.
 # even worse so, i copy-pasted this from another project of mine, carddecoders.
 # did i mention this should be split out?
 
-import gtk
+from gi.repository import Gtk as gtk
 
 class CategoryDefinitionWidget(gtk.Table):
     """Widget that displays a list of items grouped to categories in the style

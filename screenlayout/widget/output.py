@@ -20,8 +20,8 @@ import weakref
 from collections import OrderedDict
 from math import sqrt
 
-import gobject, gtk
-import pango
+from gi.repository import Gtk as gtk, GObject as gobject
+from gi.repository import Pango as pango
 
 from ..gtktools import CategoryDefinitionWidget
 from ..xrandr.constants import ConnectionStatus, SubpixelOrder
@@ -130,7 +130,7 @@ class TransitionOutputWidget(gtk.Notebook):
             b.set_cell_data_func(crt, labelfun)
 
             crt = gtk.CellRendererText()
-            b.pack_start(crt, expand=True)
+            b.pack_start(crt, expand=True, fill=False, padding=0)
             def labelfun(celllayout, cell, model, iter):
                 cell.props.text = model.get_value(iter, 0).name
             b.set_cell_data_func(crt, labelfun)
@@ -147,7 +147,7 @@ class TransitionOutputWidget(gtk.Notebook):
             b.set_cell_data_func(crt, labelfun)
 
             crt = gtk.CellRendererText()
-            b.pack_start(crt, expand=True)
+            b.pack_start(crt, expand=True, fill=False, padding=0)
             def labelfun(celllayout, cell, model, iter):
                 data = model.get_value(iter, 0)
                 cell.props.text = "Automatic" if data == 0 else str(data)

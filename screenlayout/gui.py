@@ -21,7 +21,7 @@ import optparse
 import inspect
 import executions.context
 
-import gtk
+from gi.repository import Gtk as gtk
 
 from . import widget
 
@@ -162,9 +162,9 @@ class Application(object):
         # window layout
         vbox = gtk.VBox()
         menubar = self.uimanager.get_widget('/MenuBar')
-        vbox.pack_start(menubar, expand=False)
+        vbox.pack_start(menubar, expand=False, fill=False, padding=0)
         toolbar = self.uimanager.get_widget('/ToolBar')
-        vbox.pack_start(toolbar, expand=False)
+        vbox.pack_start(toolbar, expand=False, fill=False, padding=0)
 
         vbox.add(self.widget)
 
@@ -196,7 +196,7 @@ class Application(object):
         #nb.append_page(wacom_options, gtk.Label(_("Wacom options")))
         nb.append_page(script_editor, gtk.Label(_("Script")))
 
-        d.vbox.pack_start(nb)
+        d.vbox.pack_start(nb, expand=False, fill=False, padding=0)
         d.show_all()
 
         d.run()
