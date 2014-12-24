@@ -36,7 +36,7 @@ def update_tabs(widget, notebook):
 
     outputs = list(widget._transition.outputs.keys())
 
-    for t in notebook.children():
+    for t in notebook.get_children():
         if t.output_name in outputs:
             outputs.remove(t.output_name)
             t.update()
@@ -46,7 +46,7 @@ def update_tabs(widget, notebook):
 
     for output_name in outputs:
         tabwidget = TransitionOutputWidget(widget, output_name)
-        notebook.insert_page(tabwidget, tab_label=gtk.Label(output_name))
+        notebook.insert_page(tabwidget, tab_label=gtk.Label(output_name), position=-1)
         current_tabs.append(tabwidget)
         tabwidget.connect('changed', lambda *args: widget.emit('changed'))
         tabwidget.update()
@@ -88,9 +88,9 @@ def main(do_run=True):
     w.add(v)
     v.add(r)
     v.add(output_properties)
-    v.pack_end(b1, expand=False)
-    v.pack_end(b2, expand=False)
-    v.pack_end(b3, expand=False)
+    v.pack_end(b1, expand=False, fill=False, padding=0)
+    v.pack_end(b2, expand=False, fill=False, padding=0)
+    v.pack_end(b3, expand=False, fill=False, padding=0)
     w.set_title('Simple ARandR Widget Demo')
     w.show_all()
     if do_run:

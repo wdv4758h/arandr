@@ -2,3 +2,4 @@
 * find out why do_draw is called in different ways
 * verify `layout.set_text(bigtext, len(bigtext))` is not a bug
 * port popup menu creation and other things not visible on first launch
+* restore the grid paddings that have been lost

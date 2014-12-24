@@ -71,7 +71,7 @@ class TransitionOutputWidget(gtk.Notebook):
             ])
 
         for t in self.tabs.values():
-            self.insert_page(t, t.get_label())
+            self.insert_page(t, t.get_label(), -1)
             t.outputwidget = self
 
     def update(self):
@@ -130,7 +130,7 @@ class TransitionOutputWidget(gtk.Notebook):
             b.set_cell_data_func(crt, labelfun)
 
             crt = gtk.CellRendererText()
-            b.pack_start(crt, expand=True, fill=False, padding=0)
+            b.pack_start(crt, expand=True)
             def labelfun(celllayout, cell, model, iter):
                 cell.props.text = model.get_value(iter, 0).name
             b.set_cell_data_func(crt, labelfun)
@@ -147,7 +147,7 @@ class TransitionOutputWidget(gtk.Notebook):
             b.set_cell_data_func(crt, labelfun)
 
             crt = gtk.CellRendererText()
-            b.pack_start(crt, expand=True, fill=False, padding=0)
+            b.pack_start(crt, expand=True)
             def labelfun(celllayout, cell, model, iter):
                 data = model.get_value(iter, 0)
                 cell.props.text = "Automatic" if data == 0 else str(data)
@@ -371,7 +371,7 @@ class TransitionOutputWidget(gtk.Notebook):
         def __init__(self):
             super(TransitionOutputWidget.EDIDTab, self).__init__()
             self.props.wrap = True
-            self.props.wrap_mode = pango.WRAP_CHAR
+            #self.props.wrap_mode = pango.WRAP_CHAR
 
         def update(self):
             if 'EDID' in self.outputwidget.server_output.properties:

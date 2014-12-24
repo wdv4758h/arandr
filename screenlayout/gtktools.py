@@ -70,7 +70,7 @@ class CategoryDefinitionWidget(gtk.Table):
                 clabel = gtk.Label()
                 clabel.set_markup('<b>%s</b>'%category_label) # FIXME: escape?
                 clabel.props.xalign = 0
-                self.attach(clabel, 0, 2, row, row+1, yoptions=gtk.FILL, xpadding=6, ypadding=4)
+                self.attach(clabel, 0, 2, row, row+1)
                 row += 1
                 last_category = category_label
 
@@ -87,8 +87,8 @@ class CategoryDefinitionWidget(gtk.Table):
             indent.add(label)
 
             # adding to grid
-            self.attach(indent, 0, 1, row, row+1, xoptions=gtk.FILL, yoptions=gtk.FILL, xpadding=6, ypadding=1)
-            self.attach(data, 1, 2, row, row+1, yoptions=gtk.FILL, xpadding=6, ypadding=2)
+            self.attach(indent, 0, 1, row, row+1)
+            self.attach(data, 1, 2, row, row+1)
 
             row += 1
 
