@@ -24,7 +24,6 @@ import executions.context
 import gtk
 
 from . import widget
-from .metacity import show_keybinder
 
 from .meta import __version__, TRANSLATORS, COPYRIGHT, PROGRAMNAME, PROGRAMDESCRIPTION
 
@@ -91,9 +90,6 @@ class Application(object):
             <menu action="Outputs" name="Outputs">
                 <menuitem action="OutputsDummy" />
             </menu>
-            <menu action="System">
-                <menuitem action="Metacity" />
-            </menu>
             <menu action="Help">
                 <menuitem action="About" />
             </menu>
@@ -132,7 +128,6 @@ class Application(object):
             ("OutputsDummy", None, _("Dummy")),
 
             ("System", None, _("_System")),
-            ("Metacity", None, _("_Keybindings (Metacity)"), None, None, self.do_open_metacity),
 
             ("Help", None, _("_Help")),
             ("About", gtk.STOCK_ABOUT, None, None, None, self.about),
@@ -155,7 +150,7 @@ class Application(object):
         self.uimanager.add_ui_from_string(self.uixml)
 
         # widget
-        self.widget = widget.ARandRWidget(context=context, force_version=force_version)
+        self.widget = widget.TransitionWidget(context=context, force_version=force_version)
         if file is None:
             self.filetemplate = self.widget.load_from_x()
         else:
@@ -276,12 +271,6 @@ class Application(object):
     def _populate_outputs(self):
         w = self.uimanager.get_widget('/MenuBar/Outputs')
         w.props.submenu = self.widget.contextmenu()
-
-    #################### metacity ####################
-
-    @actioncallback
-    def do_open_metacity(self):
-        show_keybinder()
 
     #################### application related ####################
 
