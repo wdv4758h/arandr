@@ -151,7 +151,7 @@ class SSHContext(StackingContext):
 
         if env:
             prefix_args = []
-            for (k, v) in iter(env.items()) if env is not None else ():
+            for (k, v) in env.items() if env is not None else ():
                 # definition as given in dash man page:
                 #     Variables set by the user must have a name consisting solely
                 #     of alphabetics, numerics, and underscores - the first of

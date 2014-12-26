@@ -19,7 +19,7 @@ import copy
 
 class PredictedServer(object):
     def __init__(self, original_server):
-        for k,v in list(vars(original_server).items()):
+        for k,v in vars(original_server).items():
             if k == 'context':
                 continue # a predicted server can't do anything, it's just for information
             setattr(self, k, v)
@@ -96,7 +96,7 @@ class BaseTransition(object):
         primarily for adapting to impossible user requests (like outputs placed
         outside the virtual, which is currently the only implemented
         functionality)."""
-        for o in list(self.outputs.values()):
+        for o in self.outputs.values():
             o.shove_to_fit()
 
     def validate(self):
@@ -110,7 +110,7 @@ class BaseTransition(object):
 
         Raises auxiliary.InadequateConfiguration exceptions on invalid
         configurations."""
-        for o in list(self.outputs.values()):
+        for o in self.outputs.values():
             o.validate()
 
     def serialize(self):
@@ -120,7 +120,7 @@ class BaseTransition(object):
         self.validate()
 
         ret = []
-        for output_name, output in list(self.outputs.items()):
+        for output_name, output in self.outputs.items():
             serialized_from_output = output.serialize()
             if serialized_from_output:
                 ret.extend(['--output', output_name] + serialized_from_output)
@@ -153,7 +153,7 @@ class BaseTransition(object):
 
         self.predicted_server = PredictedServer(self.server)
 
-        for output in list(self.outputs.values()):
+        for output in self.outputs.values():
             output.predict_server()
 
     def __repr__(self):

@@ -67,7 +67,7 @@ class TransitionWidget(gtk.DrawingArea):
     factor = property(lambda self: self._factor, _set_factor)
 
     def abort_if_unsafe(self):
-        if not len([x for x in list(self._transition.outputs.values()) if not x.off]):
+        if not len([x for x in self._transition.outputs.values() if not x.off]):
             d = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_YES_NO, _("Your configuration does not include an active monitor. Do you want to apply the configuration?"))
             result = d.run()
             d.destroy()
@@ -83,7 +83,7 @@ class TransitionWidget(gtk.DrawingArea):
             d.destroy()
 
     def _update_size_request(self):
-        max_gapless = sum(max(max(m.width, m.height) for m in o.assigned_modes) if o.assigned_modes else 0 for o in list(self._transition.server.outputs.values())) # this ignores that some outputs might not support rotation, but will always err at the side of caution.
+        max_gapless = sum(max(max(m.width, m.height) for m in o.assigned_modes) if o.assigned_modes else 0 for o in self._transition.server.outputs.values()) # this ignores that some outputs might not support rotation, but will always err at the side of caution.
         # have some buffer
         usable_size = int(max_gapless * 1.1)
         # don't request too large a window, but make sure every possible combination fits
@@ -113,7 +113,7 @@ class TransitionWidget(gtk.DrawingArea):
         an overview of the state in the transition.
 
         Only call this with an empty transition."""
-        for output in list(self._transition.outputs.values()):
+        for output in self._transition.outputs.values():
             if output.server_output.active:
                 output.set_any_mode()
                 output.set_any_position()
@@ -355,7 +355,7 @@ class TransitionWidget(gtk.DrawingArea):
     def _get_point_outputs(self, x, y):
         x,y = x*self.factor, y*self.factor
         outputs = set()
-        for output in list(self._transition.outputs.values()):
+        for output in self._transition.outputs.values():
             if not output.predicted_server_output.active:
                 continue
             poly = output.predicted_server_output.polygon
@@ -481,7 +481,7 @@ class TransitionWidget(gtk.DrawingArea):
                 output.predicted_server_output.geometry.size,
                 self.factor*5,
                 [Geometry(0, 0, *self._transition.predicted_server.virtual.max)]+[
-                    o.geometry for o in list(self._transition.predicted_server.outputs.values()) if o.name!=self._draggingoutput.name and o.active
+                    o.geometry for o in self._transition.predicted_server.outputs.values() if o.name!=self._draggingoutput.name and o.active
                 ]
             )
 

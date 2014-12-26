@@ -40,7 +40,7 @@ def _getargspec(func):
     objects of types that implement __call__), it gets passed self."""
 
     if hasattr(func, '__getargspec__'):
-        return func.__getargspec__(func.__self__) if hasattr(func, 'im_self') else func.__getargspec__()
+        return func.__getargspec__(func.__self__) if hasattr(func, '__self__') else func.__getargspec__()
     else:
         if isinstance(func, type):
             argspec = _getargspec(func.__init__)
@@ -181,7 +181,7 @@ def evalargs(func, *positional, **named):
 
     # check for undefined arguments
 
-    if any(value is undefined for value in list(expected.values())):
+    if any(value is undefined for value in expected.values()):
         raise TypeError("%s takes %s %s (%d given)"%(
             funcname,
             "at least" if argspec.defaults else "exactly",
@@ -196,7 +196,7 @@ def _argspec_get_defaultdict(argspec):
     with their default values"""
 
     if argspec.defaults:
-        return dict(list(zip(argspec.args[-len(argspec.defaults):], argspec.defaults)))
+        return dict(zip(argspec.args[-len(argspec.defaults):], argspec.defaults))
     else:
         return {}
 
@@ -215,7 +215,7 @@ def _join_argspecs(orig_func, updating_func):
     updating = _getargspec(updating_func)
 
     defaults = _argspec_get_defaultdict(orig)
-    for key, value in list(_argspec_get_defaultdict(updating).items()):
+    for key, value in _argspec_get_defaultdict(updating).items():
         if key not in orig.args:
             continue
         defaults[key] = value
@@ -360,7 +360,7 @@ def modifying(original_function, eval_from_self=False, hide=()):
                 raise ValueError("Original function must not have *args or **kwargs.")
 
             argspec_for_evalargs = _join_argspecs(_original_function, simple_function)
-            joint_expected, joint_args, joint_kwargs = evalargs(argspec_for_evalargs, *args, **(dict((k,v) for (k,v) in list(kwargs.items()) if k not in hide)))
+            joint_expected, joint_args, joint_kwargs = evalargs(argspec_for_evalargs, *args, **(dict((k,v) for (k,v) in kwargs.items() if k not in hide)))
 
             def super(**overrides):
                 all_kwargs = dict(joint_expected)

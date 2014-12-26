@@ -82,7 +82,7 @@ class TransitionForPosition(base.BaseTransition):
     def shove_to_fit(self):
         super(TransitionForPosition, self).shove_to_fit()
 
-        positioned_outputs = [o for o in list(self.outputs.values()) if o.position is not None]
+        positioned_outputs = [o for o in self.outputs.values() if o.position is not None]
         if positioned_outputs:
             min_x = min(o.position.left for o in positioned_outputs)
             min_y = min(o.position.top for o in positioned_outputs)

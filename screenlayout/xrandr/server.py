@@ -341,7 +341,7 @@ class Server(object):
                 self.rotation = None
                 self.reflection = None
 
-            self.supported_rotations = [Rotation(asciibytes(x)) for x in headline_parsed['supported_rotations'].split()]
+            self.supported_rotations = tuple(Rotation(asciibytes(x)) for x in headline_parsed['supported_rotations'].split())
             self.supported_reflections = [Reflection.noaxis]
             if b'x axis' in headline_parsed['supported_reflections']:
                 self.supported_reflections.append(Reflection.xaxis)

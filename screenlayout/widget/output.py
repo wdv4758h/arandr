@@ -70,12 +70,12 @@ class TransitionOutputWidget(gtk.Notebook):
             ('automation', self.AutomationTab()),
             ])
 
-        for t in list(self.tabs.values()):
+        for t in self.tabs.values():
             self.insert_page(t, t.get_label(), -1)
             t.outputwidget = self
 
     def update(self):
-        for t in list(self.tabs.values()):
+        for t in self.tabs.values():
             t.update()
 
     main_widget = property(lambda self: self._main_widget())
@@ -126,7 +126,7 @@ class TransitionOutputWidget(gtk.Notebook):
             crt = gtk.CellRendererText()
             b.pack_end(crt, expand=False)
             def labelfun(celllayout, cell, model, iter):
-                cell.props.text = "\N{BLACK STAR}" if model.get_value(iter, 0).is_preferred else "" # u"\N{MIDDLE DOT}"
+                cell.props.text = "\N{BLACK STAR}" if model.get_value(iter, 0).is_preferred else "" # "\N{MIDDLE DOT}"
             b.set_cell_data_func(crt, labelfun)
 
             crt = gtk.CellRendererText()
@@ -143,7 +143,7 @@ class TransitionOutputWidget(gtk.Notebook):
             crt = gtk.CellRendererText()
             b.pack_end(crt, expand=False)
             def labelfun(celllayout, cell, model, iter):
-                cell.props.text = "\N{BLACK STAR}" if model.get_value(iter, 1) else "" # u"\N{MIDDLE DOT}"
+                cell.props.text = "\N{BLACK STAR}" if model.get_value(iter, 1) else "" # "\N{MIDDLE DOT}"
             b.set_cell_data_func(crt, labelfun)
 
             crt = gtk.CellRendererText()
