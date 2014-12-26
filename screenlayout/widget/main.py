@@ -281,13 +281,13 @@ class TransitionWidget(gtk.DrawingArea):
             # create text
             layout = pangocairo.create_layout(cr)
             layout.set_font_description(newdescr)
-            layout.set_text(bigtext, len(bigtext))
+            layout.set_text(bigtext, -1)
 
             # create small text
             if smalltext:
                 st_layout = pangocairo.create_layout(cr)
                 st_layout.set_font_description(st_descr)
-                st_layout.set_text(smalltext, len(smalltext))
+                st_layout.set_text(smalltext, -1)
 
             # position text
             layoutsize = layout.get_pixel_size()
