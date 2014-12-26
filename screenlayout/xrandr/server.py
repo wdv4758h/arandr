@@ -25,6 +25,7 @@ from ..auxiliary import Size, Geometry, XRandRParseError
 from ..polygon import ConvexPolygon
 
 from .helpers import Mode
+from functools import reduce
 
 class Server(object):
     def __init__(self, context=local_context, force_version=False):
@@ -340,7 +341,7 @@ class Server(object):
                 self.rotation = None
                 self.reflection = None
 
-            self.supported_rotations = map(Rotation, headline_parsed['supported_rotations'].split())
+            self.supported_rotations = list(map(Rotation, headline_parsed['supported_rotations'].split()))
             self.supported_reflections = [Reflection.noaxis]
             if 'x axis' in headline_parsed['supported_reflections']:
                 self.supported_reflections.append(Reflection.xaxis)
@@ -430,7 +431,7 @@ class Server(object):
                 # me a machine-dependent version of the negative integer, and
                 # really, why bother, what could possibly be wrong?
                 if matched['min'] is not None and matched['max'] is not None:
-                    changable = xrange(int(matched['min']), int(matched['max'])+1)
+                    changable = range(int(matched['min']), int(matched['max'])+1)
                 else:
                     changable = None
 

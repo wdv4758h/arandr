@@ -28,7 +28,7 @@ class ConvexPolygon(list):
     5.0
     """
 
-    segments = property(lambda self: zip(self, self[1:] + [self[0],]))
+    segments = property(lambda self: list(zip(self, self[1:] + [self[0],])))
 
     def _transform_point_to_segments(self, x, y):
         """For each segment, yield the segment's length, and the coordinates

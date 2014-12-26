@@ -51,4 +51,4 @@ def get_parser():
     return parser
 
 if __name__ == "__main__":
-    print get_parser().parse_args()
+    print(get_parser().parse_args())

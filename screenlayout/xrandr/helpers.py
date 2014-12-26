@@ -40,7 +40,7 @@ class Transformation(namedtuple('_Transformation', tuple('abcdefghi'))):
 
     @classmethod
     def from_comma_separated(cls, string):
-        return cls(*map(float, string.split(",")))
+        return cls(*list(map(float, string.split(","))))
 
     def __repr__(self):
         return "<%s %s>"%(type(self).__name__, ",".join(map(str, self)))

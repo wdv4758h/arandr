@@ -35,6 +35,7 @@ from distutils.command.install import install as _install
 from distutils.command.sdist import sdist as _sdist
 from distutils.dir_util import remove_tree
 from distutils.command.clean import clean as _clean
+from functools import reduce
 
 
 PO_DIR = 'data/po'

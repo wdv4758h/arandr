@@ -52,7 +52,7 @@ class BetterList(list):
 class Size(tuple):
     """2-tuple of width and height that can be created from a '<width>x<height>' string"""
     def __new__(cls, arg):
-        if isinstance(arg, basestring):
+        if isinstance(arg, str):
             arg = [int(x) for x in arg.split("x")]
         arg = tuple(arg)
         if len(arg) != 2:
@@ -90,7 +90,7 @@ class NamedSize(object):
 class Position(tuple):
     """2-tuple of left and top that can be created from a '<left>x<top>' string"""
     def __new__(cls, arg):
-        if isinstance(arg, basestring):
+        if isinstance(arg, str):
             arg = [int(x) for x in arg.split("x")]
         arg = tuple(arg)
         if len(arg) != 2:
@@ -106,7 +106,7 @@ class Geometry(namedtuple("_Geometry", ['left', 'top', 'width', 'height'])):
     """4-tuple of width, height, left and top that can be created from an XParseGeometry style string"""
     # FIXME: use XParseGeometry instead of an own incomplete implementation
     def __new__(cls, left, top=None, width=None, height=None):
-        if isinstance(left, basestring):
+        if isinstance(left, str):
             width,rest = left.split("x")
             height,left,top = rest.split("+")
         return super(Geometry, cls).__new__(cls, left=int(left), top=int(top), width=int(width), height=int(height))
@@ -136,8 +136,6 @@ class FlagClass(type):
 
         raise ValueError("No such %s flag: %r"%(self.__name__, label))
 
-class Flag(str):
-    __metaclass__ = FlagClass
-
+class Flag(str, metaclass=FlagClass):
     def __repr__(self):
         return '<%s "%s">'%(type(self).__name__, self)

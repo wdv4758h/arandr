@@ -19,7 +19,7 @@
 import os
 import optparse
 import inspect
-import executions.context
+from . import executions.context
 
 from gi.repository import Gtk as gtk
 
@@ -209,7 +209,7 @@ class Application(object):
 
         try:
             self.widget.save_to_x()
-        except Exception, e:
+        except Exception as e:
             d = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, _("XRandR failed:\n%s")%e)
             d.run()
             d.destroy()

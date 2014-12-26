@@ -19,7 +19,7 @@ import copy
 
 class PredictedServer(object):
     def __init__(self, original_server):
-        for k,v in vars(original_server).items():
+        for k,v in list(vars(original_server).items()):
             if k == 'context':
                 continue # a predicted server can't do anything, it's just for information
             setattr(self, k, v)
@@ -96,7 +96,7 @@ class BaseTransition(object):
         primarily for adapting to impossible user requests (like outputs placed
         outside the virtual, which is currently the only implemented
         functionality)."""
-        for o in self.outputs.values():
+        for o in list(self.outputs.values()):
             o.shove_to_fit()
 
     def validate(self):
@@ -110,7 +110,7 @@ class BaseTransition(object):
 
         Raises auxiliary.InadequateConfiguration exceptions on invalid
         configurations."""
-        for o in self.outputs.values():
+        for o in list(self.outputs.values()):
             o.validate()
 
     def serialize(self):
@@ -120,7 +120,7 @@ class BaseTransition(object):
         self.validate()
 
         ret = []
-        for output_name, output in self.outputs.items():
+        for output_name, output in list(self.outputs.items()):
             serialized_from_output = output.serialize()
             if serialized_from_output:
                 ret.extend(['--output', output_name] + serialized_from_output)
@@ -138,7 +138,7 @@ class BaseTransition(object):
 
         del args.output # technical remnant from argument parsing (--output_
         if 'output_grouped' in args:
-            for output_name, output_args in args.output_grouped.items():
+            for output_name, output_args in list(args.output_grouped.items()):
                 if output_name not in self.outputs:
                     raise FileSyntaxError("XRandR command mentions unknown output %r"%output_name)
                 self.outputs[output_name].unserialize(output_args)
@@ -153,7 +153,7 @@ class BaseTransition(object):
 
         self.predicted_server = PredictedServer(self.server)
 
-        for output in self.outputs.values():
+        for output in list(self.outputs.values()):
             output.predict_server()
 
     def __repr__(self):

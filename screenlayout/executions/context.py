@@ -32,7 +32,7 @@ import sys
 import zipfile
 import subprocess
 import os.path
-import StringIO
+import io
 
 if sys.version >= (3, 3):
     from shlex import quote as shell_quote
@@ -154,7 +154,7 @@ class SSHContext(StackingContext):
 
         if env:
             prefix_args = []
-            for (k, v) in env.iteritems() if env is not None else ():
+            for (k, v) in iter(env.items()) if env is not None else ():
                 # definition as given in dash man page:
                 #     Variables set by the user must have a name consisting solely
                 #     of alphabetics, numerics, and underscores - the first of
@@ -310,7 +310,7 @@ class ZipfileContext(object):
         try:
             stderr = self.zipfile.open(filename + ".err")
         except KeyError:
-            stderr = StringIO.StringIO("")
+            stderr = io.StringIO("")
         try:
             returncode = int(self.zipfile.open(filename + ".exit").read())
         except KeyError:
