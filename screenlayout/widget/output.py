@@ -132,7 +132,7 @@ class TransitionOutputWidget(gtk.Notebook):
             crt = gtk.CellRendererText()
             b.pack_start(crt, expand=True)
             def labelfun(celllayout, cell, model, iter):
-                cell.props.text = model.get_value(iter, 0).name
+                cell.props.text = model.get_value(iter, 0).name.decode('utf8', errors='replace')
             b.set_cell_data_func(crt, labelfun)
 
             return b
@@ -160,7 +160,7 @@ class TransitionOutputWidget(gtk.Notebook):
             return gtk.Label(_("Basic"))
 
         def update(self):
-            self.output_name.props.label = self.outputwidget.output_name
+            self.output_name.props.label = self.outputwidget.output_name.decode('utf8', errors='replace')
 
             self.connection_status.props.label = {
                     ConnectionStatus('connected'): _("connected"),

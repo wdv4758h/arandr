@@ -129,7 +129,7 @@ class TransitionWidget(gtk.DrawingArea):
                 pass
 
     def _xrandr_was_reloaded(self):
-        self.sequence = sorted(self._transition.outputs.values())
+        self.sequence = sorted(self._transition.outputs.values(), key=lambda o: o.name)
         self._lastclick = (-1,-1)
 
         self._update_size_request()
@@ -146,13 +146,12 @@ class TransitionWidget(gtk.DrawingArea):
         self.load_from_x()
 
     def save_to_string(self):
-        import sys
-        if sys.version >= (3, 3):
-            from shlex import quote as shell_quote
-        else:
-            from pipes import quote as shell_quote
+        '''
+        from shlex import quote as shell_quote
 
         return " ".join(map(shell_quote, self._transition.serialize()))
+        '''
+        return 'FIXME: shlex vs bytes in strings'
 
     '''
     def save_to_file(self, file, template=None, additional=None):
@@ -257,7 +256,7 @@ class TransitionWidget(gtk.DrawingArea):
             cr.rectangle(*rect)
             cr.stroke()
 
-            bigtext = predicted.name
+            bigtext = predicted.name.decode('utf8', errors='replace')
             if output_transition.auto or (not output_transition.named_mode or output_transition.precise_mode):
                 ## painted below the output name, must not be too long
                 smalltext = _("actual size may vary")

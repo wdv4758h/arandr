@@ -19,7 +19,7 @@
 import os
 import optparse
 import inspect
-from . import executions.context
+from .executions import context as executions_context
 
 from gi.repository import Gtk as gtk
 
@@ -104,7 +104,7 @@ class Application(object):
     </ui>
     """
 
-    def __init__(self, file=None, context=executions.context.local, force_version=False):
+    def __init__(self, file=None, context=executions_context.local, force_version=False):
         self.window = window = gtk.Window()
         window.props.title = "Screen Layout Editor"
 
@@ -303,15 +303,15 @@ def main():
     else:
         p.usage()
 
-    context = executions.context.local
+    context = executions_context.local
 
     if options.remote_host:
-        context = executions.context.SSHContext(options.remote_host, underlying_context=context)
+        context = executions_context.SSHContext(options.remote_host, underlying_context=context)
         if not options.randr_display:
-            context = executions.context.WithXEnvironment(underlying_context=context)
+            context = executions_context.WithXEnvironment(underlying_context=context)
 
     if options.randr_display:
-        context = executions.context.WithEnvironment({'DISPLAY': options.randr_display}, underlying_context=context)
+        context = executions_context.WithEnvironment({'DISPLAY': options.randr_display}, underlying_context=context)
 
     a = Application(
             file=file_to_open,

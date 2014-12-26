@@ -24,7 +24,7 @@ from ..executions.context import local as local_context
 from ..auxiliary import Size, Geometry, XRandRParseError
 from ..polygon import ConvexPolygon
 
-from .helpers import Mode
+from .helpers import Mode, asciibytes
 from functools import reduce
 
 class Server(object):
@@ -54,7 +54,7 @@ class Server(object):
     def _output_help(self):
         out, err, code = executions.ManagedExecution(("xrandr", "--help"), context=self.context).read_with_error()
 
-        return out + err
+        return (out + err)
 
     def apply(self, transition):
         """Execute the transition on the connected server. The server
@@ -65,7 +65,7 @@ class Server(object):
     #################### loading ####################
 
     def load(self, verbose_output):
-        lines = verbose_output.split('\n')
+        lines = verbose_output.split(b'\n')
 
         screenline = lines.pop(0)
 
@@ -73,7 +73,7 @@ class Server(object):
 
         output_blocks = []
 
-        if lines.pop(-1) != "":
+        if lines.pop(-1) != b"":
             raise XRandRParseError("Output doesn't end with a newline.")
 
         self.outputs = {}
@@ -83,17 +83,17 @@ class Server(object):
 
         while lines:
             line = lines.pop(0)
-            if line.startswith((' ', '\t')):
+            if line.startswith((b' ', b'\t')):
                 raise XRandRParseError("Expected new output section, got whitespace.")
 
             headline = line
             details = []
             modes = []
 
-            while lines and lines[0].startswith('\t'):
+            while lines and lines[0].startswith(b'\t'):
                 details.append(lines.pop(0)[1:])
 
-            while lines and lines[0].startswith(' '):
+            while lines and lines[0].startswith(b' '):
                 modes.append(lines.pop(0)[2:])
 
             # headline, details and modes filled; interpret the data before
@@ -109,9 +109,9 @@ class Server(object):
             self._load_modes(modes, output)
 
     def _load_parse_screenline(self, screenline):
-        ssplit = screenline.split(" ")
+        ssplit = screenline.split(b" ")
 
-        ssplit_expect = ["Screen",None,"minimum",None,"x",None,"current",None,"x",None,"maximum",None,"x",None]
+        ssplit_expect = [b"Screen",None,b"minimum",None,b"x",None,b"current",None,b"x",None,b"maximum",None,b"x",None]
 
         if not all(a==b for (a,b) in zip(ssplit,ssplit_expect) if b is not None):
             raise XRandRParseError("Unexpected screen line: %r"%screenline)
@@ -157,17 +157,17 @@ class Server(object):
         program_version = None
 
         def __init__(self, help_string, version_string):
-            SERVERVERSION_PREFIX = 'Server reports RandR version'
-            PROGRAMVERSION_PREFIX = 'xrandr program version'
+            SERVERVERSION_PREFIX = b'Server reports RandR version'
+            PROGRAMVERSION_PREFIX = b'xrandr program version'
 
-            lines = [l for l in version_string.split('\n') if l]
+            lines = [l for l in version_string.split(b'\n') if l]
 
             for l in lines[:]:
                 if l.startswith(SERVERVERSION_PREFIX):
-                    self.server_version = l[len(SERVERVERSION_PREFIX):].strip()
+                    self.server_version = asciibytes(l[len(SERVERVERSION_PREFIX):].strip())
                     lines.remove(l)
                 if l.startswith(PROGRAMVERSION_PREFIX):
-                    self.program_version = l[len(PROGRAMVERSION_PREFIX):].strip()
+                    self.program_version = asciibytes(l[len(PROGRAMVERSION_PREFIX):].strip())
                     lines.remove(l)
 
             if lines:
@@ -180,8 +180,8 @@ class Server(object):
                 # before 1.3.1, the program version was not reported. it can be
                 # distinguished from older versions by the the presence of
                 # --output flag in help.
-                if '--output' in help_string:
-                    if '--primary' in help_string:
+                if b'--output' in help_string:
+                    if b'--primary' in help_string:
                         self.program_version = '1.3.0' # or 1.2.99.x
                     else:
                         self.program_version = '1.2.x'
@@ -212,27 +212,27 @@ class Server(object):
 
     class ServerMode(Mode):
         XRANDR_EXPRESSIONS = [
-                re.compile("^(?P<name>.+) +"
-                    "\(0x(?P<mode_id>[0-9a-fA-F]+)\) +"
-                    "(?P<pixelclock>[0-9]+\.[0-9]+)MHz"
-                    "(?P<flags>( ([+-][HVC]Sync|Interlace|DoubleScan|CSync))*)"
-                    "(?P<serverflags>( (\\*current|\\+preferred))*)"
-                    "(?P<garbage>.*)$"),
-                re.compile("^      h:"
-                    " +width +(?P<hwidth>[0-9]+)"
-                    " +start +(?P<hstart>[0-9]+)"
-                    " +end +(?P<hend>[0-9]+)"
-                    " +total +(?P<htotal>[0-9]+)"
-                    " +skew +(?P<hskew>[0-9]+)"
-                    " +clock +(?P<hclock>[0-9]+\.[0-9]+)KHz"
-                    "$"),
-                re.compile("^      v:"
-                    " +height +(?P<vheight>[0-9]+)"
-                    " +start +(?P<vstart>[0-9]+)"
-                    " +end +(?P<vend>[0-9]+)"
-                    " +total +(?P<vtotal>[0-9]+)"
-                    " +clock +(?P<vclock>[0-9]+\.[0-9]+)Hz"
-                    "$"),
+                re.compile(b"^(?P<name>.+) +"
+                    b"\(0x(?P<mode_id>[0-9a-fA-F]+)\) +"
+                    b"(?P<pixelclock>[0-9]+\.[0-9]+)MHz"
+                    b"(?P<flags>( ([+-][HVC]Sync|Interlace|DoubleScan|CSync))*)"
+                    b"(?P<serverflags>( (\\*current|\\+preferred))*)"
+                    b"(?P<garbage>.*)$"),
+                re.compile(b"^      h:"
+                    b" +width +(?P<hwidth>[0-9]+)"
+                    b" +start +(?P<hstart>[0-9]+)"
+                    b" +end +(?P<hend>[0-9]+)"
+                    b" +total +(?P<htotal>[0-9]+)"
+                    b" +skew +(?P<hskew>[0-9]+)"
+                    b" +clock +(?P<hclock>[0-9]+\.[0-9]+)KHz"
+                    b"$"),
+                re.compile(b"^      v:"
+                    b" +height +(?P<vheight>[0-9]+)"
+                    b" +start +(?P<vstart>[0-9]+)"
+                    b" +end +(?P<vend>[0-9]+)"
+                    b" +total +(?P<vtotal>[0-9]+)"
+                    b" +clock +(?P<vclock>[0-9]+\.[0-9]+)Hz"
+                    b"$"),
                 ]
 
         @classmethod
@@ -252,14 +252,14 @@ class Server(object):
                     int(matchdata['vstart']),
                     int(matchdata['vend']),
                     int(matchdata['vtotal']),
-                    [ModeFlag(x) for x in matchdata['flags'].split()],
+                    [ModeFlag(asciibytes(x)) for x in matchdata['flags'].split()],
                     )
 
             if matchdata['garbage']:
                 warnings.warn("Unparsed part of line: %r"%matchdata['garbage'])
 
-            ret.is_preferred = '+preferred' in matchdata['serverflags']
-            ret.is_current = '*current' in matchdata['serverflags']
+            ret.is_preferred = b'+preferred' in matchdata['serverflags']
+            ret.is_current = b'*current' in matchdata['serverflags']
 
             ret.name = matchdata['name']
             ret.id = int(matchdata['mode_id'], 16)
@@ -286,15 +286,15 @@ class Server(object):
             self._parse_details(details)
 
         HEADLINE_EXPRESSION = re.compile(
-                "^(?P<name>.*) (?P<connection>connected|disconnected|unknown connection) "
-                "(?P<primary>primary )?"
-                "((?P<current_geometry>[0-9-+x]+)( \(0x(?P<current_mode>[0-9a-fA-F]+)\))? (?P<current_rotation>normal|left|inverted|right) ((?P<current_reflection>none|X axis|Y axis|X and Y axis) )?)?"
-                "\("
-                "(?P<supported_rotations>((normal|left|inverted|right) ?)*)"
-                "(?P<supported_reflections>((x axis|y axis) ?)*)"
-                "\)"
-                "( (?P<physical_x>[0-9]+)mm x (?P<physical_y>[0-9]+)mm)?"
-                "$")
+                b"^(?P<name>.*) (?P<connection>connected|disconnected|unknown connection) "
+                b"(?P<primary>primary )?"
+                b"((?P<current_geometry>[0-9-+x]+)( \(0x(?P<current_mode>[0-9a-fA-F]+)\))? (?P<current_rotation>normal|left|inverted|right) ((?P<current_reflection>none|X axis|Y axis|X and Y axis) )?)?"
+                b"\("
+                b"(?P<supported_rotations>((normal|left|inverted|right) ?)*)"
+                b"(?P<supported_reflections>((x axis|y axis) ?)*)"
+                b"\)"
+                b"( (?P<physical_x>[0-9]+)mm x (?P<physical_y>[0-9]+)mm)?"
+                b"$")
 
         @property
         def mode(self):
@@ -313,7 +313,7 @@ class Server(object):
 
             self.name = headline_parsed['name']
             # the values were already checked in the regexp
-            self.connection_status = ConnectionStatus(headline_parsed['connection'])
+            self.connection_status = ConnectionStatus(asciibytes(headline_parsed['connection']))
 
             if headline_parsed['primary']:
                 primary_callback()
@@ -327,27 +327,27 @@ class Server(object):
                     warnings.warn("Old xrandr version (< 1.2.2), guessing current mode")
                     self.mode_number = None
                 try:
-                    self.geometry = Geometry(headline_parsed['current_geometry'])
+                    self.geometry = Geometry(asciibytes(headline_parsed['current_geometry']))
                 except ValueError:
                     raise XRandRParseError("Can not parse geometry %r"%headline_parsed['current_geometry'])
 
                 # the values were already checked for in the regexp
-                self.rotation = Rotation(headline_parsed['current_rotation'])
+                self.rotation = Rotation(asciibytes(headline_parsed['current_rotation']))
                 # the values were already checked, and the values are aliases in the Reflection class
-                self.reflection = Reflection(headline_parsed['current_reflection'])
+                self.reflection = Reflection(asciibytes(headline_parsed['current_reflection'] or b'noaxis'))
             else:
                 self.active = False
                 self.mode_number = None
                 self.rotation = None
                 self.reflection = None
 
-            self.supported_rotations = list(map(Rotation, headline_parsed['supported_rotations'].split()))
+            self.supported_rotations = [Rotation(asciibytes(x)) for x in headline_parsed['supported_rotations'].split()]
             self.supported_reflections = [Reflection.noaxis]
-            if 'x axis' in headline_parsed['supported_reflections']:
+            if b'x axis' in headline_parsed['supported_reflections']:
                 self.supported_reflections.append(Reflection.xaxis)
-            if 'y axis' in headline_parsed['supported_reflections']:
+            if b'y axis' in headline_parsed['supported_reflections']:
                 self.supported_reflections.append(Reflection.yaxis)
-            if 'x axis' in headline_parsed['supported_reflections'] and 'y axis' in headline_parsed['supported_reflections']:
+            if b'x axis' in headline_parsed['supported_reflections'] and b'y axis' in headline_parsed['supported_reflections']:
                 self.supported_reflections.append(Reflection.xyaxis)
 
             if headline_parsed['physical_x'] is not None:
@@ -359,14 +359,14 @@ class Server(object):
         def _parse_details(self, details):
             while details:
                 current_detail = [details.pop(0)]
-                while details and details[0].startswith((' ', '\t')):
+                while details and details[0].startswith((b' ', b'\t')):
                     current_detail.append(details.pop(0))
                 self._parse_detail(current_detail)
 
         def _parse_detail(self, detail):
-            if ':' not in detail[0]:
+            if b':' not in detail[0]:
                 raise XRandRParseError("Detail doesn't contain a recognizable label: %r."%detail[0])
-            label = detail[0][:detail[0].index(':')]
+            label = asciibytes(detail[0][:detail[0].index(b':')]) # they are atoms on protocol side, should be ok for ascii
 
             detail[0] = detail[0][len(label)+1:]
 
@@ -375,10 +375,10 @@ class Server(object):
                 try:
                     data, = detail
                     data = data.strip()
-                    if isinstance(mechanism, tuple) and not mechanism[0](data):
+                    if isinstance(mechanism, tuple) and not mechanism[0](asciibytes(data)):
                         raise ValueError()
 
-                    setattr(self, label, mechanism[1](data) if isinstance(mechanism, tuple) else mechanism(data))
+                    setattr(self, label, mechanism[1](asciibytes(data)) if isinstance(mechanism, tuple) else mechanism(asciibytes(data)))
                 except ValueError:
                     raise XRandRParseError("Can not evaluate detail %s."%label)
 
@@ -394,28 +394,28 @@ class Server(object):
             else:
                 self._parse_property_detail(label, detail)
 
-        INTEGER_DETAIL_EXPRESSION = re.compile('^ +(?P<decimal>-?[0-9]+) +\(0x(?P<hex>[0-9a-fA-F]+)\)'
-                '(\trange: +\((?P<min>-?[0-9]+),(?P<max>-?[0-9]+)\))?$')
+        INTEGER_DETAIL_EXPRESSION = re.compile(b'^ +(?P<decimal>-?[0-9]+) +\(0x(?P<hex>[0-9a-fA-F]+)\)'
+                b'(\trange: +\((?P<min>-?[0-9]+),(?P<max>-?[0-9]+)\))?$')
 
         def _parse_property_detail(self, label, detail):
             if detail[0] == '':
-                data = "".join([x.strip() for x in detail[1:]]).decode('hex')
+                data = b"".join([x.strip() for x in detail[1:]]).decode('hex')
                 changable = None
             # counting \t against multi-value type=XA_ATOM format=32 data, not
             # implemented for lack of examples and ways of setting it (?)
-            elif detail[0].startswith('\t') and detail[0].count('\t') == 1:
-                data = detail[0][detail[0].index('\t'):].strip()
+            elif detail[0].startswith(b'\t') and detail[0].count(b'\t') == 1:
+                data = detail[0][detail[0].index(b'\t'):].strip()
                 changable = None
 
                 if len(detail) > 1:
-                    supported_string = '\tsupported:'
+                    supported_string = b'\tsupported:'
                     if detail[1].startswith(supported_string):
                         detail[1] = detail[1][len(supported_string):]
                         detail[2:] = [x.lstrip('\t') for x in detail[2:]]
 
-                        alldetail = "".join(detail[1:])
+                        alldetail = b"".join(detail[1:])
 
-                        if any(len(x) % 13 != 0 for x in detail[1:]) or alldetail[::13].strip(" ") != "":
+                        if any(len(x) % 13 != 0 for x in detail[1:]) or alldetail[::13].strip(b" ") != b"":
                             warnings.warn("Can not read supported values for detail %r"%label)
 
                         else:
@@ -450,6 +450,9 @@ class Server(object):
         # XRandRParseError is raised. the second expression's return value is
         # assigned to the output object under the key's name. if just a single
         # lambda, it acts like the second one.
+        #
+        # simple_details requires the properties to only contain ascii
+        # characters; those are decoded to str before being passed.
         simple_details = {
                 'identifier': (lambda data: data[:2] == '0x', lambda data: int(data[2:], 16)),
                 'timestamp': int,

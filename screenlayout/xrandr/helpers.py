@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from collections import namedtuple
+from ..auxiliary import XRandRParseError
 
 class Mode(namedtuple("BaseMode", [
         "pclk",
@@ -44,3 +45,13 @@ class Transformation(namedtuple('_Transformation', tuple('abcdefghi'))):
 
     def __repr__(self):
         return "<%s %s>"%(type(self).__name__, ",".join(map(str, self)))
+
+def asciibytes(b):
+    """Like .decode('ascii'), but raises XRandRParseError because that's the
+    only exception that should be raised from parsing under the assumption that
+    the code is correct but the input is invalid."""
+
+    try:
+        return b.decode('ascii')
+    except UnicodeDecodeError:
+        raise XRandRParseError("Non-ASCII bytes in xrandr output where ASCII was expected (%r)"%b)

@@ -34,10 +34,7 @@ import subprocess
 import os.path
 import io
 
-if sys.version >= (3, 3):
-    from shlex import quote as shell_quote
-else:
-    from pipes import quote as shell_quote
+from shlex import quote as shell_quote
 
 from .. import executions
 from ..modifying import modifying
