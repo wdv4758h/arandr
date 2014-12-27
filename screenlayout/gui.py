@@ -182,7 +182,7 @@ class Application(object):
 
     @actioncallback
     def do_open_properties(self):
-        d = gtk.Dialog(_("Script Properties"), None, gtk.DIALOG_MODAL, (gtk.STOCK_CLOSE, gtk.RESPONSE_ACCEPT))
+        d = gtk.Dialog(_("Script Properties"), None, gtk.DialogFlags.MODAL, (gtk.STOCK_CLOSE, gtk.ResponseType.ACCEPT))
         d.set_default_size(300,400)
 
         script_editor = gtk.TextView()
@@ -210,7 +210,7 @@ class Application(object):
         try:
             self.widget.save_to_x()
         except Exception as e:
-            d = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, _("XRandR failed:\n%s")%e)
+            d = gtk.MessageDialog(None, gtk.DialogFlags.MODAL, gtk.MessageType.ERROR, gtk.BUTTONS_OK, _("XRandR failed:\n%s")%e)
             d.run()
             d.destroy()
 
@@ -225,7 +225,7 @@ class Application(object):
         result = d.run()
         filenames = d.get_filenames()
         d.destroy()
-        if result == gtk.RESPONSE_ACCEPT:
+        if result == gtk.ResponseType.ACCEPT:
             assert len(filenames) == 1
             f = filenames[0]
             self.filetemplate = self.widget.load_from_file(f)
@@ -238,7 +238,7 @@ class Application(object):
         result = d.run()
         filenames = d.get_filenames()
         d.destroy()
-        if result == gtk.RESPONSE_ACCEPT:
+        if result == gtk.ResponseType.ACCEPT:
             assert len(filenames) == 1
             f = filenames[0]
             if not f.endswith('.sh'): f = f + '.sh'
@@ -246,8 +246,8 @@ class Application(object):
 
     def _new_file_dialog(self, title, type):
         d = gtk.FileChooserDialog(title, None, type)
-        d.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
-        d.add_button(gtk.STOCK_OPEN, gtk.RESPONSE_ACCEPT)
+        d.add_button(gtk.STOCK_CANCEL, gtk.ResponseType.CANCEL)
+        d.add_button(gtk.STOCK_OPEN, gtk.ResponseType.ACCEPT)
 
         layoutdir = os.path.expanduser('~/.screenlayout/')
         try:

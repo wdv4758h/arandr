@@ -73,7 +73,7 @@ def main(do_run=True):
     b2.props.image = gtk.Image()
     b2.props.image.props.icon_name = "gtk-find"
     def preview(*args):
-        d = gtk.Dialog("Command preview", w, gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT, (gtk.STOCK_OK, gtk.RESPONSE_ACCEPT))
+        d = gtk.Dialog("Command preview", w, gtk.DialogFlags.MODAL | gtk.DialogFlags.DESTROY_WITH_PARENT, (gtk.STOCK_OK, gtk.ResponseType.ACCEPT))
         l = gtk.Label(r.save_to_string())
         d.vbox.add(l)
         d.show_all()

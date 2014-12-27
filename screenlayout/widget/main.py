@@ -68,17 +68,17 @@ class TransitionWidget(gtk.DrawingArea):
 
     def abort_if_unsafe(self):
         if not len([x for x in self._transition.outputs.values() if not x.off]):
-            d = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_YES_NO, _("Your configuration does not include an active monitor. Do you want to apply the configuration?"))
+            d = gtk.MessageDialog(None, gtk.DialogFlags.MODAL, gtk.MessageType.WARNING, gtk.BUTTONS_YES_NO, _("Your configuration does not include an active monitor. Do you want to apply the configuration?"))
             result = d.run()
             d.destroy()
-            if result == gtk.RESPONSE_YES:
+            if result == gtk.ResponseType.YES:
                 return False
             else:
                 return True
         return False
 
     def error_message(self, message):
-            d = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_CLOSE, message)
+            d = gtk.MessageDialog(None, gtk.DialogFlags.MODAL, gtk.MessageType.ERROR, gtk.BUTTONS_CLOSE, message)
             d.run()
             d.destroy()
 
