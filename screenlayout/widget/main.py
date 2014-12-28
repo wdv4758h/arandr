@@ -45,8 +45,6 @@ class TransitionWidget(gtk.DrawingArea):
 
         self.set_size_request(1024//self.factor, 1024//self.factor) # best guess for now
 
-        self.connect('draw', self.do_draw)
-
         self.connect('button-press-event', self.click)
         self.set_events(gdk.EventMask.BUTTON_PRESS_MASK)
 
@@ -215,8 +213,6 @@ class TransitionWidget(gtk.DrawingArea):
     #################### painting ####################
 
     def do_draw(self, cr):
-#        print("args", cr)
-#        return
         cr.scale(1/self.factor, 1/self.factor)
         cr.set_line_width(self.factor*1.5)
 
