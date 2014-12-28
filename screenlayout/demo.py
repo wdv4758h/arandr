@@ -46,7 +46,7 @@ def update_tabs(widget, notebook):
 
     for output_name in outputs:
         tabwidget = TransitionOutputWidget(widget, output_name)
-        notebook.insert_page(tabwidget, tab_label=gtk.Label(output_name), position=-1)
+        notebook.insert_page(tabwidget, tab_label=gtk.Label(output_name.decode('utf8', errors='replace')), position=-1)
         current_tabs.append(tabwidget)
         tabwidget.connect('changed', lambda *args: widget.emit('changed'))
         tabwidget.update()
