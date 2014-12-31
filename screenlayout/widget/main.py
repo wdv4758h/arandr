@@ -483,12 +483,13 @@ class TransitionWidget(gtk.DrawingArea):
             )
 
     def _dragmotion_cb(self, widget, context,  x, y, time):
-        if not 'screenlayout-output' in context.list_targets(): # from outside
+        if not 'screenlayout-output' in [x.name() for x in context.list_targets()]: # from outside
             return False
         if not self._draggingoutput: # from void; should be already aborted
             return False
 
-        context.drag_status(gdk.ACTION_MOVE, time)
+        # needs to be set every time to keep sending the movements!
+        gdk.drag_status(context, gdk.DragAction.MOVE, time)
 
         rel = x-self._draggingfrom[0], y-self._draggingfrom[1]
 
