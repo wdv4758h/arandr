@@ -377,7 +377,7 @@ class TransitionWidget(gtk.DrawingArea):
 
         m = gtk.Menu()
         for output in outputs:
-            i = gtk.MenuItem(output.name)
+            i = gtk.MenuItem(output.name.decode('utf8', errors='replace'))
             i.props.submenu = self._contextmenu(output)
             m.append(i)
 
