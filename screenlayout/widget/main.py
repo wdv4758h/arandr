@@ -341,10 +341,11 @@ class TransitionWidget(gtk.DrawingArea):
 
             if old_sequence != self.sequence:
                 self._force_repaint()
-        if event.button == 3:
+        if event.button == gdk.BUTTON_SECONDARY:
             m = self.contextmenu(undermouse)
             m.show_all()
-            m.popup(None, None, None, event.button, event.time)
+            m.popup(None, None, None, None, event.button, event.time)
+            self.__m = m # FIXME gtk reference needs to be kept around
 
         self._lastclick = (event.x, event.y)
 
@@ -378,7 +379,7 @@ class TransitionWidget(gtk.DrawingArea):
         for output in outputs:
             i = gtk.MenuItem(output.name)
             i.props.submenu = self._contextmenu(output)
-            m.add(i)
+            m.append(i)
 
             if output.server_output.connection_status != ConnectionStatus.connected:
                 i.props.sensitive = False
@@ -387,7 +388,7 @@ class TransitionWidget(gtk.DrawingArea):
     def _contextmenu(self, output):
         m = gtk.Menu()
         details = gtk.MenuItem(_("Details..."))
-        m.add(details)
+        m.append(details)
         return m
 
         oc = self._xrandr.configuration.outputs[on]
@@ -444,7 +445,7 @@ class TransitionWidget(gtk.DrawingArea):
     def setup_draganddrop(self):
         self.drag_source_set(gdk.ModifierType.BUTTON1_MASK, [gtk.TargetEntry.new('screenlayout-output', gtk.TargetFlags.SAME_WIDGET, 0)], 0)
         self.drag_dest_set(0, [gtk.TargetEntry.new('screenlayout-output', gtk.TargetFlags.SAME_WIDGET, 0)], 0)
-        #self.drag_source_set(gdk.EventMask.BUTTON1_MOTION_MASK, [], 0)
+        #self.drag_source_set(gdk.ModifierType.BUTTON1_MASK, [], 0)
         #self.drag_dest_set(0, [], 0)
 
         self._draggingfrom = None
@@ -462,14 +463,14 @@ class TransitionWidget(gtk.DrawingArea):
             output = self._get_point_active_output(*self._lastclick)
         except IndexError:
             # FIXME: abort?
-            context.set_icon_stock(gtk.STOCK_CANCEL, 10,10)
-            widget.emit('drag-failed', context, gtk.DragResult())
+            self.drag_source_set_icon_stock(gtk.STOCK_CANCEL)
+            widget.emit('drag-failed', context, gtk.DragResult.NO_TARGET)
             return None
 
         self._draggingoutput = output
         self._draggingfrom = self._lastclick
         self._draggingfrom_pos = output.position or output.predicted_server_output.geometry.position
-        context.set_icon_stock(gtk.STOCK_FULLSCREEN, 10,10)
+        self.drag_source_set_icon_stock(gtk.STOCK_FULLSCREEN)
 
         self._transition.predict_server()
 
@@ -482,7 +483,7 @@ class TransitionWidget(gtk.DrawingArea):
             )
 
     def _dragmotion_cb(self, widget, context,  x, y, time):
-        if not 'screenlayout-output' in context.targets: # from outside
+        if not 'screenlayout-output' in context.list_targets(): # from outside
             return False
         if not self._draggingoutput: # from void; should be already aborted
             return False
