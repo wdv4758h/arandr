@@ -270,7 +270,7 @@ class ZipfileContext(object):
 
     If a state is set in a ZipfileContext, all successive commands are prefixed
     with that state, typically in a directory-structure-like fashion (i.e.
-    states end with slashes).
+    states end with slashes). States must be ASCII-only strings.
 
     Caveats:
 
@@ -307,13 +307,13 @@ class ZipfileContext(object):
         try:
             stderr = self.zipfile.open(filename + ".err")
         except KeyError:
-            stderr = io.StringIO("")
+            stderr = io.BytesIO(b"")
         try:
             returncode = int(self.zipfile.open(filename + ".exit").read())
         except KeyError:
             returncode = 0
         try:
-            self.state_prefix = self.zipfile.open(filename + ".state").read()
+            self.state_prefix = self.zipfile.open(filename + ".state").read().decode('ascii')
         except KeyError:
             # as specified, no change happened
             pass

@@ -75,15 +75,15 @@ def main():
     if args.shell:
         for cmd in args.command:
             stdout, stderr, returncode = executions.ManagedExecution(cmd, shell=True, context=c).read_with_error()
-            sys.stderr.write(stderr)
-            sys.stdout.write(stdout)
+            sys.stderr.buffer.write(stderr)
+            sys.stdout.buffer.write(stdout)
 
             if returncode:
                 sys.exit(returncode)
     else:
         stdout, stderr, returncode = executions.ManagedExecution(args.command, context=c).read_with_error()
-        sys.stderr.write(stderr)
-        sys.stdout.write(stdout)
+        sys.stderr.buffer.write(stderr)
+        sys.stdout.buffer.write(stdout)
         sys.exit(returncode)
 
 if __name__ == "__main__":

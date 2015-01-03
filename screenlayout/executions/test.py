@@ -64,7 +64,7 @@ class EnvironmentTests(unittest.TestCase):
         env2 = context.WithEnvironment({'y': '23'}, underlying_context=env1)
 
         job = executions.ManagedExecution(['env'], context=env2)
-        self.assertEqual(job.read(), "y=23\nx=42\n")
+        self.assertEqual(sorted(job.read().strip().split(b'\n')), [b"x=42", b"y=23"])
 
     def test_ssh_escapes(self):
         # when running this, make sure ssh to localhost works
