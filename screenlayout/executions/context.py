@@ -85,7 +85,7 @@ class WithXEnvironment(WithEnvironment):
         return super()
 
     def determine_environment(self):
-        displays = executions.ManagedExecution('grep --no-filename --text --null-data "^DISPLAY=" /proc/*/environ 2>/dev/null |sort --zero-terminated --unique', shell=True, context=self.underlying_context).read().split("\0")
+        displays = executions.ManagedExecution('grep --no-filename --text --null-data "^DISPLAY=" /proc/*/environ 2>/dev/null |sort --zero-terminated --unique', shell=True, context=self.underlying_context).read().decode('ascii').split("\0")
 
         displays = (line.split('=', 1)[1] for line in displays if line)
 
@@ -153,7 +153,9 @@ class SSHContext(StackingContext):
         if not shell:
             # with ssh, there is no way of passing individual arguments;
             # rather, arguments are always passed to be shell execued
-            args = " ".join(shell_quote(a) for a in args)
+            #
+            # FIXME should rather use a binary quote function
+            args = " ".join(shell_quote(a.decode('ascii') if isinstance(a, bytes) else a) for a in args)
 
         if env:
             prefix_args = []
