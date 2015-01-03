@@ -126,10 +126,16 @@ class SSHContext(StackingContext):
         * Environment variables can only be set or explicitly unset; passing
           them will not automatically unset all others (unlike with
           subprocess.Popen)
+
+    The implementation does not use SSH multiplexing, because if it is enabled
+    and the context becomes the master, the call to .communicate() does not
+    return until the multiplexing master closes down. This could possibly be
+    worked around using better understanding of the processes involved. (After
+    all, an SSH master session in a terminal terminates as well).
     """
     ssh_executable = '/usr/bin/ssh'
 
-    def __init__(self, host, ssh_args=(), underlying_context=local):
+    def __init__(self, host, ssh_args=('-o', 'BatchMode=yes', '-o', 'ControlMaster=no'), underlying_context=local):
         self.host = host
         self.ssh_args = ssh_args
         super(SSHContext, self).__init__(underlying_context)
