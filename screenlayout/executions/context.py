@@ -33,11 +33,47 @@ import zipfile
 import subprocess
 import os.path
 import io
-
-from shlex import quote as shell_quote
+import re
+import binascii
 
 from .. import executions
 from ..modifying import modifying
+
+# like shlex._find_unsafe, but for bytes
+_find_unsafe = re.compile(rb'[^\w@%+=:,./-]', re.ASCII).search
+# like shlex.quote, but for bytes
+def _quote(s):
+    if not isinstance(s, bytes):
+        s = str(s).encode('ascii')
+    if not s:
+        return b"''"
+    if _find_unsafe(s) is None:
+        return s
+    return b"'" + s.replace(b"'", b"'\"'\"'") + b"'"
+def _shell_unsplit(args):
+    """Merge a list of arguments into a command line
+
+    This is like an inverse of shlex.split, and more precisely tries to behave
+    in such a way that
+
+    >>> subprocess.Popen(args)
+
+    is equivalent to
+
+    >>> subprocess.Popen(_shell_unsplit(args), shell=True)
+
+    . It is pretty lenient as far as the string types are concerned (byteas are
+    accepted as well as strings), because Popen behaves that way, but does not
+    follow Popen's attempts to use filesystem encodings to the arguments (after
+    all, they might not be files), and instead refuses to encode strings that
+    are not plain ASCII. (For reference, the Popen strings are passed through
+    PyUnicode_EncodeFSDefault).
+    """
+    return b" ".join(_quote(s) for s in args)
+
+# helper for zipfile names
+def b2a(data):
+    return binascii.b2a_qp(data).decode('ascii').replace('=\n', '').replace('/', '=2F')
 
 local = subprocess.Popen
 
@@ -153,9 +189,7 @@ class SSHContext(StackingContext):
         if not shell:
             # with ssh, there is no way of passing individual arguments;
             # rather, arguments are always passed to be shell execued
-            #
-            # FIXME should rather use a binary quote function
-            args = " ".join(shell_quote(a.decode('ascii') if isinstance(a, bytes) else a) for a in args)
+            args = _shell_unsplit(args)
 
         if env:
             prefix_args = []
@@ -167,14 +201,14 @@ class SSHContext(StackingContext):
                 if k[0] in string.digits or any(_k not in string.ascii_letters + string.digits + '_' for _k in k):
                     raise ValueError("The environment variable %r can not be set over SSH."%k)
 
-                prefix_args += "%s=%s "%(shell_quote(k), shell_quote(v))
+                prefix_args.append(_quote(k) + b'=' + _quote(v) + b' ')
             if shell == True:
                 # sending it through *another* shell because when shell=True,
                 # the user can expect the environment variables to already be
                 # set when the expression is evaluated.
-                args = "".join(prefix_args) + "exec sh -c " + shell_quote(args)
+                args = b"".join(prefix_args) + b" exec sh -c " + _quote(args)
             else:
-                args = "".join(prefix_args) + args
+                args = b"".join(prefix_args) + args
 
         return super(args=(self.ssh_executable,) + self.ssh_args + (self.host, '--', args), shell=False, env=None)
 
@@ -233,14 +267,20 @@ class ZipfileLoggingContext(StackingContext):
 
         real_process = super()
 
-        condensed_args = args if shell else " ".join(map(shell_quote, args))
+        if shell:
+            if isinstance(args, bytes):
+                condensed_args = args
+            else:
+                condensed_args = args.encode('ascii')
+        else:
+            condensed_args = _shell_unsplit(args)
 
         real_process._finished_execution = lambda stdout, stderr, retcode: self.store(condensed_args, stdout, stderr, retcode, base_state, next_state)
 
         return real_process
 
     def store(self, args, stdout, stderr, returncode, base_state, next_state):
-        name = base_state + args
+        name = base_state + b2a(args)
 
         self.zipfile.writestr(name + ".out", stdout)
         if stderr:
@@ -268,7 +308,8 @@ class ZipfileContext(object):
     Command results (stdout, stderr, exit code, state machine transition) are
     stored as the contents of individual files in the ZIP file, discerned by
     their suffixes (.out, .err, .exit, .state). The command line is stored in
-    the first part of the file name, shell-escaped. (As shell escaping is not a
+    the first part of the file name, shell-escaped and in quoted-printable
+    encoding that additionally escapes slashes. (As shell escaping is not a
     normalization, it might happen that even though a command was stored in the
     ZIP file, it can not be looked up if it is escaped differently).
 
@@ -287,9 +328,6 @@ class ZipfileContext(object):
       different machine states don't clash, e.g. if you use an executable in a
       relative path, `bin/ls`, and want to use the systems's `ls` in a machine
       state you call `bin/`, you might be in trouble.
-    * When the ZIP file is opened with a utility that interprets file names
-      hierarchically, commands containing slashes (eg because they contain file
-      references) may appear spit at those slashes.
     """
 
     def __init__(self, zipfilename):
@@ -307,9 +345,14 @@ class ZipfileContext(object):
             raise NotImplementedError("Using any other stdout/stderr options than subprocess.PIPE is not supported yet.")
 
         if shell is False:
-            args = " ".join(map(shell_quote, args))
+            filename = _shell_unsplit(args)
+        else:
+            if not isinstance(args, bytes):
+                filename = args.encode('ascii')
+            else:
+                args = filename
 
-        filename = self.state_prefix + args
+        filename = self.state_prefix + b2a(filename)
 
         stdout = self.zipfile.open(filename + ".out")
         try:

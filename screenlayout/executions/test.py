@@ -75,7 +75,7 @@ class EnvironmentTests(unittest.TestCase):
         self.AssertEqualJobs(['uname', '-a'], context=both_contexts)
 
         self.AssertEqualJobs(['echo', '"spam"', 'egg\\spam'], context=both_contexts)
-        self.AssertEqualJobs(['echo', ''.join(chr(x) for x in range(32, 256))], context=both_contexts)
+        self.AssertEqualJobs(['echo', b''.join(bytes([x]) for x in range(32, 256))], context=both_contexts)
         self.AssertEqualJobs('''echo "hello world!\\nthis is" 'fun', really''', shell=True, context=both_contexts)
 
         complex_shell_expression = '''for x in a b `echo c`; do sh -c "(echo \\\\$x) && echo 1"; done; echo $x'''
