@@ -157,6 +157,6 @@ class BaseTransition(object):
             output.predict_server()
 
     def __repr__(self):
-        return '<%s bound to %s: %s>'%(type(self).__name__, self.server, " ".join(self.serialize() or ["no changes"]))
+        return '<%s bound to %s: %s>'%(type(self).__name__, self.server, self.serialize() or "no changes")
 
     Output = BaseTransitionOutput
