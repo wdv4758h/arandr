@@ -60,6 +60,9 @@ class BaseTransitionOutput(object):
         """Update .predicted_server_output as BaseTransition.predict_server
         does. Do not call this directly unless you know what you're doing
         (instead, call the complete transition's predict_server function)."""
+
+    def __repr__(self):
+        return "<%s %r of %s>"%(type(self).__name__, self.name, self.transition)
 class BaseTransition(object):
     """Transition instructions for one X server's state to a new one; basically
     an internal representation of an ``xrandr`` invocation. See
