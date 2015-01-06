@@ -112,6 +112,7 @@ class TransitionOutputForMode(base.BaseTransitionOutput):
         return max((m for m in self.server_output.assigned_modes if m.name == self.named_mode), key=lambda m: (m.is_preferred, m.width * m.height))
 
     def predict_server(self):
+        super(TransitionOutputForMode, self).predict_server()
         configuredmode = self.get_configured_mode()
         if self.off:
             self.predicted_server_output.active = False

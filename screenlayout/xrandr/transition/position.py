@@ -46,6 +46,7 @@ class TransitionOutputForPosition(base.BaseTransitionOutput):
             self.position = Position((0, 0))
 
     def predict_server(self):
+        super(TransitionOutputForPosition, self).predict_server()
         if self.position is not None:
             self.predicted_server_output.geometry = Geometry(
                 self.position.left,
@@ -58,6 +59,8 @@ class TransitionOutputForPosition(base.BaseTransitionOutput):
         self.position = Position((self.position.left + delta[0], self.position.top + delta[1]))
 
     def shove_to_fit(self):
+        super(TransitionOutputForPosition, self).shove_to_fit()
+
         if self.position is None:
             return
 
