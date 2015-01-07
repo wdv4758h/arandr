@@ -405,7 +405,7 @@ class Server(object):
                 b'(\trange: +\((?P<min>-?[0-9]+),(?P<max>-?[0-9]+)\))?$')
 
         def _parse_property_detail(self, label, detail):
-            if detail[0] == '':
+            if detail[0] in (b'', b' '):
                 data = binascii.a2b_hex(b"".join([x.strip() for x in detail[1:]]))
                 changable = None
             # counting \t against multi-value type=XA_ATOM format=32 data, not
