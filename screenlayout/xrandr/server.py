@@ -373,6 +373,12 @@ class Server(object):
 
             if label.lower() in self.simple_details:
                 mechanism = self.simple_details[label.lower()]
+                if label.lower() == 'crtcs' and len(detail) != 1 and all(b'????' in d for d in detail[1:]):
+                    # in 1.2.0, properties were supported so rudimentarily not
+                    # even their values could be shown, and were outputted in a
+                    # way that is incompatible with later versions.
+                    warnings.warn("Old xrandr version (< 1.2.1), ignoring properties")
+                    detail = detail[:1]
                 try:
                     data, = detail
                     data = data.strip()
