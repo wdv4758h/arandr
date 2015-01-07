@@ -17,6 +17,8 @@
 import warnings
 from collections import namedtuple
 import re
+from functools import reduce
+import binascii
 
 from .constants import Rotation, Reflection, ModeFlag, SubpixelOrder, ConnectionStatus
 from .. import executions
@@ -25,7 +27,6 @@ from ..auxiliary import Size, Geometry, XRandRParseError
 from ..polygon import ConvexPolygon
 
 from .helpers import Mode, asciibytes
-from functools import reduce
 
 class Server(object):
     def __init__(self, context=None, force_version=False):
@@ -399,7 +400,7 @@ class Server(object):
 
         def _parse_property_detail(self, label, detail):
             if detail[0] == '':
-                data = b"".join([x.strip() for x in detail[1:]]).decode('hex')
+                data = binascii.a2b_hex(b"".join([x.strip() for x in detail[1:]]))
                 changable = None
             # counting \t against multi-value type=XA_ATOM format=32 data, not
             # implemented for lack of examples and ways of setting it (?)

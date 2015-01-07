@@ -19,6 +19,7 @@
 import weakref
 from collections import OrderedDict
 from math import sqrt
+import binascii
 
 from gi.repository import Gtk as gtk, GObject as gobject
 from gi.repository import Pango as pango
@@ -375,7 +376,7 @@ class TransitionOutputWidget(gtk.Notebook):
 
         def update(self):
             if 'EDID' in self.outputwidget.server_output.properties:
-                self.props.label = self.outputwidget.server_output.properties['EDID'][0].encode('hex')
+                self.props.label = binascii.b2a_hex(self.outputwidget.server_output.properties['EDID'][0]).decode('ascii')
             else:
                 self.props.label = _("No EDID data available.")
 
