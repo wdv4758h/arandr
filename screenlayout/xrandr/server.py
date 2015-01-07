@@ -20,7 +20,7 @@ import re
 
 from .constants import Rotation, Reflection, ModeFlag, SubpixelOrder, ConnectionStatus
 from .. import executions
-from ..executions.context import local as local_context
+from ..executions.contextbuilder import build_default_context
 from ..auxiliary import Size, Geometry, XRandRParseError
 from ..polygon import ConvexPolygon
 
@@ -28,12 +28,12 @@ from .helpers import Mode, asciibytes
 from functools import reduce
 
 class Server(object):
-    def __init__(self, context=local_context, force_version=False):
+    def __init__(self, context=None, force_version=False):
         """Create proxy object and check for xrandr at the given
         executions.context. Fail with untested versions unless `force_version`
         is True."""
 
-        self.context = context
+        self.context = context or build_default_context()
 
         self.version = self.Version(self._output_help(), self._output('--version'))
 

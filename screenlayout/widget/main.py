@@ -24,7 +24,7 @@ from ..xrandr.constants import ConnectionStatus
 from ..xrandr.server import Server
 from ..xrandr.transition import Transition
 from ..snap import Snap
-from .. import executions
+from ..executions.contextbuilder import build_default_context
 from ..auxiliary import Geometry, Position, InadequateConfiguration
 
 import gettext
@@ -35,11 +35,11 @@ class TransitionWidget(gtk.DrawingArea):
             'changed':(gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()),
             }
 
-    def __init__(self, factor=8, context=executions.context.local, force_version=False):
+    def __init__(self, factor=8, context=None, force_version=False):
         super(TransitionWidget, self).__init__()
 
         self.force_version = force_version
-        self.context = context
+        self.context = context or build_default_context()
 
         self._factor = factor
 

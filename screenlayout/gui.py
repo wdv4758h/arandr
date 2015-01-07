@@ -19,6 +19,7 @@
 import os
 import optparse
 import inspect
+from .executions import contextbuilder
 from .executions import context as executions_context
 
 from gi.repository import Gtk as gtk
@@ -104,7 +105,7 @@ class Application(object):
     </ui>
     """
 
-    def __init__(self, file=None, context=executions_context.local, force_version=False):
+    def __init__(self, file=None, context=None, force_version=False):
         self.window = window = gtk.Window()
         window.props.title = "Screen Layout Editor"
 
@@ -303,7 +304,7 @@ def main():
     else:
         p.usage()
 
-    context = executions_context.local
+    context = contextbuilder.build_default_context()
 
     if options.remote_host:
         context = executions_context.SSHContext(options.remote_host, underlying_context=context)
