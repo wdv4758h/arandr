@@ -39,6 +39,7 @@ def populate_parser(p):
 
     p.add_argument('--zip-in', metavar='FILE', help="Use FILE to look up command results there instead of executing them locally")
     p.add_argument('--zip-out', metavar='FILE', help="Store all commands and their results in the FILE")
+    p.add_argument('--zip-out-stateless', action='store_true', help="When creating a zip file, assume no command executed has any side effects")
     p.add_argument('--ssh', metavar='HOST', help="Execute the commands remotely on HOST")
     p.add_argument('--auto-x', action='store_true', help="Automatically find a running X session and redirect graphical output there")
     p.add_argument('--verbose', action='store_true', help="Log all executed commands")
@@ -49,6 +50,9 @@ def build_from_arguments(args):
 
     if args.ssh and args.zip_in:
         raise p.error("--ssh and --zip-in can not be used together.")
+
+    if args.zip_out_stateless and not args.zip_out:
+        raise p.error("--zip-out-stateless requires --zip-out.")
 
     if args.zip_in:
         c = context.ZipfileContext(args.zip_in)
@@ -68,7 +72,7 @@ def build_from_arguments(args):
             c = context.WithXEnvironment(underlying_context=c)
 
     if args.zip_out:
-        c = context.ZipfileLoggingContext(args.zip_out, underlying_context=c)
+        c = context.ZipfileLoggingContext(args.zip_out, underlying_context=c, store_states=not args.zip_out_stateless)
 
     if args.verbose:
         c = context.SimpleLoggingContext(underlying_context=c)

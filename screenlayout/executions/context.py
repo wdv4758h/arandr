@@ -249,7 +249,7 @@ class ZipfileLoggingContext(StackingContext):
 
     def __init__(self, zipfilename, store_states=True, underlying_context=local):
         self.zipfile = zipfile.ZipFile(zipfilename, 'w')
-        self.store_states = True
+        self.store_states = store_states
         self.current_state = ""
         self._incrementing_state_number = 0
         super(ZipfileLoggingContext, self).__init__(underlying_context)
