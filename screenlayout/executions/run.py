@@ -24,23 +24,16 @@ import logging
 import argparse
 
 from .. import executions
-from . import context
+from . import contextbuilder
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
 
     p.add_argument('command', nargs=argparse.REMAINDER, help="Command to execute")
     p.add_argument('--shell', action='store_true', help='Execute several commands. If enabled, the command has to be shell-escaped, but more than one command can be specified.')
-    p.add_argument('--zip-in', metavar='FILE', help="Use FILE to look up command results there instead of executing them locally")
-    p.add_argument('--zip-out', metavar='FILE', help="Store all commands and their results in the FILE")
-    p.add_argument('--ssh', metavar='HOST', help="Execute the commands remotely on HOST")
-    p.add_argument('--auto-x', action='store_true', help="Automatically find a running X session and redirect graphical output there")
-    p.add_argument('--verbose', action='store_true', help="Log all executed commands")
+    contextbuilder.populate_parser(p)
 
     args = p.parse_args()
-
-    if args.ssh and args.zip_in:
-        raise p.error("--ssh and --zip-in can not be used together.")
 
     if not args.command:
         raise p.error("No command specified")
@@ -49,28 +42,7 @@ def main():
     logging.debug("Starting up")
     logging.root.setLevel(logging.DEBUG)
 
-    if args.zip_in:
-        c = context.ZipfileContext(args.zip_in)
-    else:
-        c = context.local
-
-        if args.ssh:
-            if args.verbose:
-                c = context.SimpleLoggingContext(underlying_context=c)
-
-            c = context.SSHContext(args.ssh, underlying_context=c)
-
-    if args.auto_x:
-            if args.verbose:
-                c = context.SimpleLoggingContext(underlying_context=c)
-
-            c = context.WithXEnvironment(underlying_context=c)
-
-    if args.zip_out:
-        c = context.ZipfileLoggingContext(args.zip_out, underlying_context=c)
-
-    if args.verbose:
-        c = context.SimpleLoggingContext(underlying_context=c)
+    c = contextbuilder.build_from_arguments(args)
 
     if args.shell:
         for cmd in args.command:
