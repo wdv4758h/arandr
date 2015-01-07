@@ -31,6 +31,7 @@ def main():
 
     p.add_argument('command', nargs=argparse.REMAINDER, help="Command to execute")
     p.add_argument('--shell', action='store_true', help='Execute several commands. If enabled, the command has to be shell-escaped, but more than one command can be specified.')
+    p.add_argument('--ignore-errors', action='store_true', help='Ignore errors from subprocesses')
     contextbuilder.populate_parser(p)
 
     args = p.parse_args()
@@ -50,13 +51,14 @@ def main():
             sys.stderr.buffer.write(stderr)
             sys.stdout.buffer.write(stdout)
 
-            if returncode:
+            if returncode and not args.ignore_errors:
                 sys.exit(returncode)
     else:
         stdout, stderr, returncode = executions.ManagedExecution(args.command, context=c).read_with_error()
         sys.stderr.buffer.write(stderr)
         sys.stdout.buffer.write(stdout)
-        sys.exit(returncode)
+        if not args.ignore_errors:
+            sys.exit(returncode)
 
 if __name__ == "__main__":
     main()
