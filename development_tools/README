@@ -9,3 +9,16 @@ various released versions xrandr in order to test them against ARandR. Be aware
 that this affects only the client tool; unless all the versions built are
 tested against different versions of the X server (including different
 hardware), tests done using it are not likely to be comprehensive.
+
+Run inside a checkout of the xrandr program without arguments.
+
+build_xrandr_archives.sh
+------------------------
+
+Script that runs the typical ARandR queries (--help, --version, --query
+--verbose) iteratively with all of its arguments as PATH, storing the results
+in a stateless output.zip file in the respective folders.
+
+Run from the arandr repository (or from anywhere if the screenlayout module is
+installed) with a wildcard matching all directories resulting from
+build_xrandrs.sh as arguments.
