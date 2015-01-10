@@ -16,9 +16,12 @@ build_xrandr_archives.sh
 ------------------------
 
 Script that runs the typical ARandR queries (--help, --version, --query
---verbose) iteratively with all of its arguments as PATH, storing the results
-in a stateless output.zip file in the respective folders.
+--verbose) iteratively with its arguments as PATH, storing the results in a
+stateless output.zip file in the respective folders. The first argument is
+used as output file name (eg. output.zip or
+output-with-configured-projector.zip) to discern multiple hardware
+configurations
 
 Run from the arandr repository (or from anywhere if the screenlayout module is
-installed) with a wildcard matching all directories resulting from
-build_xrandrs.sh as arguments.
+installed) with a .zip argument and a wildcard matching all directories
+resulting from build_xrandrs.sh as arguments.
