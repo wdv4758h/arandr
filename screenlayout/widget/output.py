@@ -369,14 +369,12 @@ class TransitionOutputWidget(gtk.Notebook):
                 self.outputwidget.emit('changed')
 
     class EDIDTab(gtk.Label, Tab):
-        def __init__(self):
-            super(TransitionOutputWidget.EDIDTab, self).__init__()
-            self.props.wrap = True
-            #self.props.wrap_mode = pango.WRAP_CHAR
-
         def update(self):
             if 'EDID' in self.outputwidget.server_output.properties:
-                self.props.label = binascii.b2a_hex(self.outputwidget.server_output.properties['EDID'][0]).decode('ascii')
+                hexstring = binascii.b2a_hex(self.outputwidget.server_output.properties['EDID'][0]).decode('ascii')
+                partlength = 64
+                parts = [hexstring[i*partlength:(i+1)*partlength] for i in range(len(hexstring)//partlength)]
+                self.props.label = "\n".join(parts)
             else:
                 self.props.label = _("No EDID data available.")
 
@@ -410,6 +408,7 @@ class TransitionOutputWidget(gtk.Notebook):
 
             auto_label = gtk.Label(_("Let <tt>xrandr</tt> decide position and mode:"))
             auto_label.props.use_markup = True
+            auto_label.props.xalign = 0
 
             items = [
                     (MODE_AND_POSITION, auto_label, self.auto),
