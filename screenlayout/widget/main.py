@@ -53,6 +53,8 @@ class TransitionWidget(gtk.DrawingArea):
 
         self.setup_draganddrop()
 
+        self.setup_contextmenu()
+
         self._transition = None
 
     #################### widget features ####################
@@ -133,6 +135,7 @@ class TransitionWidget(gtk.DrawingArea):
         self._update_size_request()
         if self.get_window():
             self._force_repaint()
+        self.refresh_contextmenu()
         self.emit('changed')
 
     def save_to_x(self):
@@ -342,10 +345,9 @@ class TransitionWidget(gtk.DrawingArea):
             if old_sequence != self.sequence:
                 self._force_repaint()
         if event.button == gdk.BUTTON_SECONDARY:
-            m = self.contextmenu(undermouse)
+            m = self.get_contextmenu_for(undermouse)
             m.show_all()
             m.popup(None, None, None, None, event.button, event.time)
-            self.__m = m # FIXME gtk reference needs to be kept around
 
         self._lastclick = (event.x, event.y)
 
@@ -368,24 +370,37 @@ class TransitionWidget(gtk.DrawingArea):
 
     #################### context menu ####################
 
-    def contextmenu(self, outputs=None):
+    def get_contextmenu_for(self, outputs=None):
         outputs = outputs or list(self._transition.outputs.values())
 
         if len(outputs) == 1:
-            (output, ) = outputs
-            return self._contextmenu(output)
+            output, = outputs
+            return self._contextmenu_parts[output.name].props.submenu
 
-        m = gtk.Menu()
-        for output in outputs:
+        # FIXME: create a partial menu that only contains the relevant outputs
+        # and still lives long enough not to be affected to what has been
+        # discussed in gnome's #python 2014-12-31 15:00
+        return self._main_contextmenu
+
+    def get_main_contextmenu(self):
+        return self._main_contextmenu
+
+    def setup_contextmenu(self):
+        self._main_contextmenu = gtk.Menu()
+        self._contextmenu_parts = {}
+
+    def refresh_contextmenu(self):
+        for output in sorted(self._transition.outputs.values(), key=lambda o: o.name):
             i = gtk.MenuItem(output.name.decode('utf8', errors='replace'))
-            i.props.submenu = self._contextmenu(output)
-            m.append(i)
+            i.props.submenu = self._contextmenu_for_output(output)
+            self._main_contextmenu.append(i)
+
+            self._contextmenu_parts[output.name] = i
 
             if output.server_output.connection_status != ConnectionStatus.connected:
                 i.props.sensitive = False
-        return m
 
-    def _contextmenu(self, output):
+    def _contextmenu_for_output(self, output):
         m = gtk.Menu()
         details = gtk.MenuItem(_("Details..."))
         m.append(details)
