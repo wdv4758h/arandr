@@ -76,9 +76,11 @@ Installation
 Dependencies
 ------------
 
- * python_
- * PyGTK_
- * xrandr_
+ * python_ >= 3.3
+ * GTK 3
+ * PyGObject
+ * xrandr_ (not necessarily local)
+ * an SSH client (to configure remote systems)
  * docutils_ (>=0.6; for building the man page)
 
 
