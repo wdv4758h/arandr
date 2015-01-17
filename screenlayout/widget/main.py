@@ -404,16 +404,13 @@ class TransitionWidget(gtk.DrawingArea):
         m = gtk.Menu()
         details = gtk.MenuItem(_("Details..."))
         m.append(details)
-        return m
-
-        oc = self._xrandr.configuration.outputs[on]
-        os = self._xrandr.state.outputs[on]
 
         enabled = gtk.CheckMenuItem(_("Active"))
-        enabled.props.active = oc.active
-        enabled.connect('activate', lambda menuitem: self.set_active(on, menuitem.props.active))
+        enabled.props.active = output.named_mode or output.precise_mode
+        enabled.connect('activate', lambda menuitem: output.set_active)
 
-        m.add(enabled)
+        m.append(enabled)
+        return m
 
         if oc.active:
             res_m = gtk.Menu()
