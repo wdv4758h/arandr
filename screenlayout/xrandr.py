@@ -1,16 +1,16 @@
 # ARandR -- Another XRandR GUI
 # Copyright (C) 2008 -- 2011 chrysn <chrysn@fsfe.org>
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -51,8 +51,9 @@ class XRandR(object):
             self.features.add(Feature.PRIMARY)
 
     def _get_outputs(self):
-        assert list(self.state.outputs.keys()) == list(self.configuration.outputs.keys())
-        return list(self.state.outputs.keys())
+        ret = list(self.state.outputs.keys())
+        assert ret == list(self.configuration.outputs.keys())
+        return ret
     outputs = property(_get_outputs)
 
     #################### calling xrandr ####################
@@ -98,7 +99,7 @@ class XRandR(object):
             raise FileSyntaxError()
         options = dict((a[0], a[1:]) for a in args.split('--output') if a) # first part is empty, exclude empty parts
 
-        for on,oa in list(options.items()):
+        for on,oa in options.items():
             o = self.configuration.outputs[on]
             os = self.state.outputs[on]
             o.primary = False
@@ -287,7 +288,7 @@ class XRandR(object):
             self.outputs = {}
 
         def __repr__(self):
-            return '<%s for %d Outputs, %d connected>'%(type(self).__name__, len(self.outputs), len([x for x in list(self.outputs.values()) if x.connected]))
+            return '<%s for %d Outputs, %d connected>'%(type(self).__name__, len(self.outputs), len([x for x in self.outputs.values() if x.connected]))
 
         class Virtual(object):
             def __init__(self, min, max):
@@ -309,11 +310,11 @@ class XRandR(object):
             self._xrandr = xrandr
 
         def __repr__(self):
-            return '<%s for %d Outputs, %d active>'%(type(self).__name__, len(self.outputs), len([x for x in list(self.outputs.values()) if x.active]))
+            return '<%s for %d Outputs, %d active>'%(type(self).__name__, len(self.outputs), len([x for x in self.outputs.values() if x.active]))
 
         def commandlineargs(self):
             args = []
-            for on,o in list(self.outputs.items()):
+            for on,o in self.outputs.items():
                 args.append("--output")
                 args.append(on)
                 if not o.active:

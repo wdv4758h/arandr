@@ -1,16 +1,16 @@
 # ARandR -- Another XRandR GUI
 # Copyright (C) 2008 -- 2011 chrysn <chrysn@fsfe.org>
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -57,7 +57,7 @@ class ARandRWidget(gtk.DrawingArea):
     factor = property(lambda self: self._factor, _set_factor)
 
     def abort_if_unsafe(self):
-        if not len([x for x in list(self._xrandr.configuration.outputs.values()) if x.active]):
+        if not len(x for x in self._xrandr.configuration.outputs.values() if x.active):
             d = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_WARNING, gtk.BUTTONS_YES_NO, _("Your configuration does not include an active monitor. Do you want to apply the configuration?"))
             result = d.run()
             d.destroy()
@@ -73,7 +73,7 @@ class ARandRWidget(gtk.DrawingArea):
             d.destroy()
 
     def _update_size_request(self):
-        max_gapless = sum(max(o.size) if o.active else 0 for o in list(self._xrandr.configuration.outputs.values())) # this ignores that some outputs might not support rotation, but will always err at the side of caution.
+        max_gapless = sum(max(o.size) if o.active else 0 for o in self._xrandr.configuration.outputs.values()) # this ignores that some outputs might not support rotation, but will always err at the side of caution.
         # have some buffer
         usable_size = int(max_gapless * 1.1)
         # don't request too large a window, but make sure very possible compination fits
@@ -290,7 +290,7 @@ class ARandRWidget(gtk.DrawingArea):
     def _get_point_outputs(self, x, y):
         x,y = x*self.factor, y*self.factor
         outputs = set()
-        for on,o in list(self._xrandr.configuration.outputs.items()):
+        for on, o in self._xrandr.configuration.outputs.items():
             if not o.active: continue
             if o.position[0]-self.factor <= x <= o.position[0]+o.size[0]+self.factor and o.position[1]-self.factor <= y <= o.position[1]+o.size[1]+self.factor:
                 outputs.add(on)
@@ -409,7 +409,7 @@ class ARandRWidget(gtk.DrawingArea):
                 self._xrandr.configuration.outputs[self._draggingoutput].size,
                 self.factor*5,
                 [(Position((0,0)),self._xrandr.state.virtual.max)]+[
-                    (v.position, v.size) for (k,v) in list(self._xrandr.configuration.outputs.items()) if k!=self._draggingoutput and v.active
+                    (v.position, v.size) for (k,v) in self._xrandr.configuration.outputs.items() if k!=self._draggingoutput and v.active
                 ]
             )
 

@@ -2,17 +2,17 @@
 
 # ARandR -- Another XRandR GUI
 # Copyright (C) 2008 -- 2011 chrysn <chrysn@fsfe.org>
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -142,7 +142,7 @@ class update_translator_credits(NoOptionCommand):
         print()
 
         by_language_set = {}
-        for name, languages in list(contributions.items()):
+        for name, languages in contributions.items():
             by_language_set.setdefault(frozenset(languages), set()).add(name)
         strip_address = lambda c: (c[:c.index('<')] if '<' in c else c).strip()
         def language2name(lang):
@@ -173,11 +173,11 @@ class update_translator_credits(NoOptionCommand):
 
         print("====================== for README ================")
         print()
-        print("\n".join(sorted("* %s (%s)"%(", ".join(strip_address(c) for c in sorted(contributors)), ", ".join(sorted(language2name(l).encode('utf8') for l in languages))) for (languages, contributors) in list(by_language_set.items()))))
+        print("\n".join(sorted("* %s (%s)"%(", ".join(strip_address(c) for c in sorted(contributors)), ", ".join(sorted(language2name(l).encode('utf8') for l in languages))) for (languages, contributors) in by_language_set.items())))
         print()
 
         by_language = {}
-        for name, languages in list(contributions.items()):
+        for name, languages in contributions.items():
             for l in languages:
                 by_language.setdefault(l, set()).add(name)
         print("====================== for debian/copyright ================")
