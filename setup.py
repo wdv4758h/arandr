@@ -36,6 +36,7 @@ from distutils.command.install import install as _install
 from distutils.command.sdist import sdist as _sdist
 from distutils.dir_util import remove_tree
 from distutils.command.clean import clean as _clean
+from functools import reduce
 
 
 PO_DIR = 'data/po'
@@ -134,14 +135,14 @@ class update_translator_credits(NoOptionCommand):
 
         contributions.update(TRANSLATORS_OVERRIDES)
 
-        print "====================== for screenlayout/meta.py ================"
-        print
-        print "TRANSLATORS = [\n        " + ",\n        ".join("'%s'"%c for c in sorted(contributions)) + "\n        ]"
-        print
-        print
+        print("====================== for screenlayout/meta.py ================")
+        print()
+        print("TRANSLATORS = [\n        " + ",\n        ".join("'%s'"%c for c in sorted(contributions)) + "\n        ]")
+        print()
+        print()
 
         by_language_set = {}
-        for name, languages in contributions.items():
+        for name, languages in list(contributions.items()):
             by_language_set.setdefault(frozenset(languages), set()).add(name)
         strip_address = lambda c: (c[:c.index('<')] if '<' in c else c).strip()
         def language2name(lang):
@@ -166,28 +167,28 @@ class update_translator_credits(NoOptionCommand):
 
             if country:
                 country = pycountry.countries.get(alpha2=country).name
-                return u"%s (%s)"%(lang, country)
+                return "%s (%s)"%(lang, country)
             else:
                 return lang
 
-        print "====================== for README ================"
-        print
-        print "\n".join(sorted("* %s (%s)"%(", ".join(strip_address(c) for c in sorted(contributors)), ", ".join(sorted(language2name(l).encode('utf8') for l in languages))) for (languages, contributors) in by_language_set.items()))
-        print
+        print("====================== for README ================")
+        print()
+        print("\n".join(sorted("* %s (%s)"%(", ".join(strip_address(c) for c in sorted(contributors)), ", ".join(sorted(language2name(l).encode('utf8') for l in languages))) for (languages, contributors) in list(by_language_set.items()))))
+        print()
 
         by_language = {}
-        for name, languages in contributions.items():
+        for name, languages in list(contributions.items()):
             for l in languages:
                 by_language.setdefault(l, set()).add(name)
-        print "====================== for debian/copyright ================"
-        print
+        print("====================== for debian/copyright ================")
+        print()
         for l, names in sorted(by_language.items()):
-            print "Files: data/po/%s.po"%l
-            print "Copyright: 2008-%s, chrysn <chrysn@fsfe.org>"%datetime.datetime.now().year
+            print("Files: data/po/%s.po"%l)
+            print("Copyright: 2008-%s, chrysn <chrysn@fsfe.org>"%datetime.datetime.now().year)
             for n in sorted(names):
-                print "          %s"%n
-            print "License: GPL-3+"
-            print
+                print("          %s"%n)
+            print("License: GPL-3+")
+            print()
 
 class build(_build):
     sub_commands = _build.sub_commands + [('build_trans', None), ('build_man', None)]

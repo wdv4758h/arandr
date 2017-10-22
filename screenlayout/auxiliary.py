@@ -48,7 +48,7 @@ class BetterList(list):
 class Size(tuple):
     """2-tuple of width and height that can be created from a '<width>x<height>' string"""
     def __new__(cls, arg):
-        if isinstance(arg, basestring):
+        if isinstance(arg, str):
             arg = [int(x) for x in arg.split("x")]
         arg = tuple(arg)
         assert len(arg)==2
@@ -85,7 +85,7 @@ class NamedSize(object):
 class Position(tuple):
     """2-tuple of left and top that can be created from a '<left>x<top>' string"""
     def __new__(cls, arg):
-        if isinstance(arg, basestring):
+        if isinstance(arg, str):
             arg = [int(x) for x in arg.split("x")]
         arg = tuple(arg)
         assert len(arg)==2
@@ -100,7 +100,7 @@ class Geometry(tuple):
     """4-tuple of width, height, left and top that can be created from an XParseGeometry style string"""
     # FIXME: use XParseGeometry instead of an own incomplete implementation
     def __new__(cls, width, height=None, left=None, top=None):
-        if isinstance(width, basestring):
+        if isinstance(width, str):
             width,rest = width.split("x")
             height,left,top = rest.split("+")
         return super(Geometry, cls).__new__(cls, (int(width), int(height), int(left), int(top)))

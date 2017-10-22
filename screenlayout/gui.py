@@ -213,7 +213,7 @@ class Application(object):
 
         try:
             self.widget.save_to_x()
-        except Exception, e:
+        except Exception as e:
             d = gtk.MessageDialog(None, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, _("XRandR failed:\n%s")%e)
             d.run()
             d.destroy()
@@ -292,7 +292,7 @@ class Application(object):
         d.props.copyright = COPYRIGHT
         d.props.comments = PROGRAMDESCRIPTION
         licensetext = open(os.path.join(os.path.dirname(__file__), 'data', 'gpl-3.txt')).read()
-        d.props.license = licensetext.replace('<', u'\u2329 ').replace('>', u' \u232a')
+        d.props.license = licensetext.replace('<', '\u2329 ').replace('>', ' \u232a')
         d.props.logo_icon_name = 'video-display'
         d.run()
         d.destroy()

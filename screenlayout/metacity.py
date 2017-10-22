@@ -214,7 +214,7 @@ class ActionWidget(GConfButton):
                     raise ValueError("Not my syntax.")
 
                 # countfile, length, cases
-                counter, scripts = zip(*[part.split(") ") for part in cases.split(" ;; ")])
+                counter, scripts = list(zip(*[part.split(") ") for part in cases.split(" ;; ")]))
                 if counter != tuple(str(i) for i in range(length)):
                     raise ValueError("Not my syntax.")
 

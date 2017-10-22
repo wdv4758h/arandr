@@ -23,6 +23,7 @@ import warnings
 from .auxiliary import BetterList, Size, Position, Geometry, FileLoadError, FileSyntaxError, InadequateConfiguration, Rotation, ROTATIONS, NORMAL, NamedSize
 
 import gettext
+from functools import reduce
 gettext.install('arandr')
 
 SHELLSHEBANG='#!/bin/sh'
@@ -50,8 +51,8 @@ class XRandR(object):
             self.features.add(Feature.PRIMARY)
 
     def _get_outputs(self):
-        assert self.state.outputs.keys() == self.configuration.outputs.keys()
-        return self.state.outputs.keys()
+        assert list(self.state.outputs.keys()) == list(self.configuration.outputs.keys())
+        return list(self.state.outputs.keys())
     outputs = property(_get_outputs)
 
     #################### calling xrandr ####################
@@ -97,7 +98,7 @@ class XRandR(object):
             raise FileSyntaxError()
         options = dict((a[0], a[1:]) for a in args.split('--output') if a) # first part is empty, exclude empty parts
 
-        for on,oa in options.items():
+        for on,oa in list(options.items()):
             o = self.configuration.outputs[on]
             os = self.state.outputs[on]
             o.primary = False
@@ -286,7 +287,7 @@ class XRandR(object):
             self.outputs = {}
 
         def __repr__(self):
-            return '<%s for %d Outputs, %d connected>'%(type(self).__name__, len(self.outputs), len([x for x in self.outputs.values() if x.connected]))
+            return '<%s for %d Outputs, %d connected>'%(type(self).__name__, len(self.outputs), len([x for x in list(self.outputs.values()) if x.connected]))
 
         class Virtual(object):
             def __init__(self, min, max):
@@ -308,11 +309,11 @@ class XRandR(object):
             self._xrandr = xrandr
 
         def __repr__(self):
-            return '<%s for %d Outputs, %d active>'%(type(self).__name__, len(self.outputs), len([x for x in self.outputs.values() if x.active]))
+            return '<%s for %d Outputs, %d active>'%(type(self).__name__, len(self.outputs), len([x for x in list(self.outputs.values()) if x.active]))
 
         def commandlineargs(self):
             args = []
-            for on,o in self.outputs.items():
+            for on,o in list(self.outputs.items()):
                 args.append("--output")
                 args.append(on)
                 if not o.active:
